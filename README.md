@@ -87,6 +87,23 @@ Para publicar: suba a pasta para o GitHub, importe o repositório na [Vercel](ht
 - A ficha soma o BBA de cada classe, usa o maior bônus de defesa entre elas, rola os PV com o dado da classe escolhida e conta aptidões, talentos bônus, Técnicas e Segredos da Força por classe.
 - Em **Detalhes → Classes e níveis** dá para corrigir os níveis manualmente.
 
+## NPCs e ameaças (mestre)
+
+> Antes de usar, rode [supabase/npcs.sql](supabase/npcs.sql) no **SQL Editor** do Supabase. Isso só precisa ser feito uma vez.
+
+- **Fichas prontas do livro:** 46 fichas dos capítulos 11, 15 e 16:
+  - arquétipos: stormtrooper, soldado rebelde, clone, bandido, assassino...;
+  - personagens dos filmes: Vader, Yoda, Boba Fett, Grievous...;
+  - dróides e bestas: wampa, rancor, nexu...
+  Dá para adicionar várias cópias de uma vez (Stormtrooper 1, 2, 3...).
+- **Gerador de NPC não heróico**, pelas regras da p. 277: escolha nível, atributos, armadura, armas e perícias, e ele calcula PV, defesas, ataques e o ND estimado.
+- **Em cena** (aba Mesa):
+  - cards com PV, dano/cura e condição;
+  - botões de iniciativa, percepção e ataques de cada NPC;
+  - **Rolar iniciativa de todos**, que alimenta a ordem de combate.
+- **Dificuldade do encontro** e **XP**, calculados pelas regras do cap. 14: soma dos ND ÷ 3 comparada ao nível do grupo, com XP pela Tabela 14-1.
+- As rolagens dos NPCs podem ser **secretas** (só o mestre vê). Os jogadores nunca veem as fichas dos NPCs.
+
 ## Limitações conhecidas
 
 - **Fora do cálculo automático:**

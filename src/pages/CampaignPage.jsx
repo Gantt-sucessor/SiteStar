@@ -12,6 +12,10 @@ import RollFeed from '../components/RollFeed';
 import Crawl, { DEFAULT_CRAWL } from '../components/Crawl';
 import { SaveStatus } from './CharacterPage';
 import { sfx } from '../lib/sfx';
+import { useNpcs, encounterDifficulty } from '../lib/npcs';
+import { NpcCard, NpcSheet, BestiaryPicker, NpcBuilder, npcHp } from '../components/Npcs';
+import { sendRoll } from '../lib/rolls';
+import { d20Formula } from '../lib/dice';
 
 function useCampaign(id) {
   const [campaign, setCampaign] = useState(null);
@@ -268,6 +272,10 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
   const [tab, setTab] = useState('mesa');
   const [openChar, setOpenChar] = useState(null);
   const [copied, setCopied] = useState(false);
+  const npcApi = useNpcs(campaign.id);
+  const [npcSecret, setNpcSecret] = useState(true);
+  const [openNpc, setOpenNpc] = useState(null);
+  const [picker, setPicker] = useState(null); // 'livro' | 'gerador'
 
   useSetRollTarget({ campaignId: campaign.id, character: { id: null, name: 'Mestre' }, isMaster: true });
 
@@ -293,9 +301,26 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
     const exists = init.order.find((o) => o.id === key);
     const order = exists
       ? init.order.map((o) => (o.id === key ? { ...o, value: r.total } : o))
-      : [...init.order, { id: key, name: r.character_name || profiles[r.user_id]?.display_name || 'Jogador', value: r.total }];
+      : [...init.order, { id: key, name: r.character_name || profiles[r.user_id]?.display_name || 'Jogador', value: r.total, npc: r.user_id === user.id && !r.character_id }];
     order.sort((a, b) => b.value - a.value);
-    saveCampaign({ initiative: { ...init, order } });
+    initRef.current = { ...init, order };
+    saveCampaign({ initiative: initRef.current });
+  };
+
+  const scene = (npcApi.npcs || []).filter((x) => x.in_scene);
+  const difficulty = encounterDifficulty(scene, characters.map((c) => derive(c.data).level));
+  const rollSceneInitiative = async () => {
+    for (const row of scene) {
+      if ((row.data.condition || 0) >= 5) continue;
+      const cp = 0;
+      await sendRoll({ formula: d20Formula(row.data.init + cp), label: 'Iniciativa', kind: 'initiative', campaignId: campaign.id, character: { id: null, name: row.data.name }, hidden: npcSecret });
+    }
+  };
+  const addNpcs = async (items, inScene) => {
+    const rows = await npcApi.add(items, inScene);
+    setPicker(null);
+    if (rows.length === 1) { setOpenNpc(rows[0].id); }
+    if (!inScene) setTab('ameacas');
   };
 
   return (
@@ -311,7 +336,7 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
       </CampaignHeader>
 
       <div className="tabs">
-        {[['mesa', 'Mesa'], ['abertura', 'Abertura'], ['notas', 'Anotações'], ['config', 'Configurações']].map(([k, l]) => (
+        {[['mesa', 'Mesa'], ['ameacas', 'Ameaças / NPCs'], ['abertura', 'Abertura'], ['notas', 'Anotações'], ['config', 'Configurações']].map(([k, l]) => (
           <button key={k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -333,6 +358,35 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
                 </div>
               )}
             </Panel>
+            <Panel title={`Em cena (${scene.length})`} className="red" aside={
+              <label className="check tiny"><input type="checkbox" checked={npcSecret} onChange={(e) => setNpcSecret(e.target.checked)} /> rolagens dos NPCs em segredo</label>
+            }>
+              {npcApi.error && <div className="error-box small" style={{ marginBottom: 8 }}>{npcApi.error.includes('npcs') ? 'Rode o arquivo supabase/npcs.sql no SQL Editor do Supabase para ativar os NPCs.' : npcApi.error}</div>}
+              {difficulty && (
+                <div className="row between" style={{ marginBottom: 10 }}>
+                  <span className={`tag ${difficulty.tone}`}>Encontro: {difficulty.label}</span>
+                  <span className="tiny muted">Soma de ND {difficulty.sumNd} · nível médio do grupo {difficulty.avg.toFixed(1)} · {difficulty.xp.toLocaleString('pt-BR')} XP ({difficulty.xpEach.toLocaleString('pt-BR')} por herói)</span>
+                </div>
+              )}
+              {scene.length === 0 ? (
+                <div className="empty small">Nenhum inimigo em cena.</div>
+              ) : (
+                <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+                  {scene.map((row) => (
+                    <NpcCard key={row.id} row={row} campaignId={campaign.id} secret={npcSecret}
+                      onChange={(patch) => npcApi.update(row.id, patch)} onOpen={() => setOpenNpc(row.id)}
+                      onRemoveFromScene={() => npcApi.update(row.id, { in_scene: false })} />
+                  ))}
+                </div>
+              )}
+              <div className="row" style={{ marginTop: 10 }}>
+                <button className="btn sm red" onClick={() => setPicker('livro')}>+ Ficha do livro</button>
+                <button className="btn sm red" onClick={() => setPicker('gerador')}>+ Criar NPC</button>
+                <button className="btn sm" onClick={() => setTab('ameacas')}>Biblioteca de NPCs</button>
+                {scene.length > 0 && <button className="btn sm yellow" onClick={rollSceneInitiative}>Rolar iniciativa de todos</button>}
+                {scene.length > 0 && <button className="btn sm ghost" onClick={() => scene.forEach((row) => npcApi.update(row.id, { in_scene: false }))}>Limpar cena</button>}
+              </div>
+            </Panel>
             <Panel title="Ordem de iniciativa">
               <InitiativeTracker initiative={campaign.initiative} onChange={(initiative) => saveCampaign({ initiative })} characters={characters} />
             </Panel>
@@ -340,6 +394,23 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
           <Panel title="Rolagens ao vivo" aside={<span className="tiny dim">use o d20 no canto para rolar</span>}>
             <RollFeed campaignId={campaign.id} userId={user.id} profiles={profiles} toastOthers onRoll={onRoll} canClear />
           </Panel>
+        </div>
+      )}
+
+      {tab === 'ameacas' && (
+        <NpcLibrary api={npcApi} campaignId={campaign.id} secret={npcSecret} selected={openNpc} onSelect={setOpenNpc} onPicker={setPicker} />
+      )}
+
+      {picker === 'livro' && <BestiaryPicker onAdd={addNpcs} onClose={() => setPicker(null)} />}
+      {picker === 'gerador' && <NpcBuilder onAdd={addNpcs} onClose={() => setPicker(null)} />}
+      {openNpc && tab === 'mesa' && npcApi.npcs?.find((x) => x.id === openNpc) && (
+        <div className="modal-back" onClick={(e) => e.target === e.currentTarget && setOpenNpc(null)}>
+          <div className="modal panel red">
+            <div className="row" style={{ justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button className="btn sm" onClick={() => setOpenNpc(null)}>Fechar ✕</button>
+            </div>
+            <NpcSheet row={npcApi.npcs.find((x) => x.id === openNpc)} campaignId={campaign.id} secret={npcSecret} onChange={(patch) => npcApi.update(openNpc, patch)} />
+          </div>
         </div>
       )}
 
@@ -545,6 +616,55 @@ function CampaignConfig({ campaign, members, profiles, onSave }) {
           <button className="btn red" onClick={destroy}>Destruir campanha (Ordem 66)</button>
         </Panel>
       </div>
+    </div>
+  );
+}
+
+function NpcLibrary({ api, campaignId, secret, selected, onSelect, onPicker }) {
+  const [q, setQ] = useState('');
+  const list = (api.npcs || []).filter((x) => !q || x.data.name.toLowerCase().includes(q.toLowerCase()));
+  const current = (api.npcs || []).find((x) => x.id === selected) || list[0];
+  const duplicate = async (row) => {
+    const base = row.data.name.replace(/ \d+$/, '');
+    const count = (api.npcs || []).filter((x) => x.data.name.startsWith(base)).length;
+    const rows = await api.add([{ ...row.data, name: `${base} ${count + 1}`, hpCurrent: null, condition: 0 }], row.in_scene);
+    if (rows[0]) onSelect(rows[0].id);
+  };
+  return (
+    <div className="grid" style={{ gridTemplateColumns: 'minmax(240px, 320px) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
+      <Panel title={`NPCs da campanha (${(api.npcs || []).length})`} className="red">
+        {api.error && <div className="error-box small" style={{ marginBottom: 8 }}>{api.error.includes('npcs') ? 'Rode o arquivo supabase/npcs.sql no SQL Editor do Supabase para ativar os NPCs.' : api.error}</div>}
+        <div className="stack" style={{ marginBottom: 10 }}>
+          <button className="btn red primary" onClick={() => onPicker('livro')}>+ Ficha pronta do livro</button>
+          <button className="btn red" onClick={() => onPicker('gerador')}>+ Criar NPC (gerador / em branco)</button>
+          <input placeholder="Buscar..." value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        {api.npcs === null ? <div className="loader" style={{ minHeight: 80 }}><div className="saber" /></div> : list.length === 0 ? (
+          <div className="empty small">Nenhum NPC ainda. Comece por um stormtrooper!</div>
+        ) : (
+          <div className="list" style={{ maxHeight: 560, overflowY: 'auto' }}>
+            {list.map((row) => {
+              const { cur, max } = npcHp(row.data);
+              return (
+                <div key={row.id} className="list-row" style={{ cursor: 'pointer', background: current?.id === row.id ? 'rgba(255,64,64,0.08)' : undefined }} onClick={() => onSelect(row.id)}>
+                  <div>
+                    <div className="name">{row.data.name} {row.in_scene && <span className="tag red">em cena</span>}</div>
+                    <div className="sub">ND {row.data.nd} · PV {cur}/{max}</div>
+                  </div>
+                  <div className="row" style={{ flexWrap: 'nowrap', gap: 2 }}>
+                    <button className="btn sm ghost" title="Duplicar" onClick={(e) => { e.stopPropagation(); duplicate(row); }}>⧉</button>
+                    <button className="btn sm ghost red" title="Apagar" onClick={(e) => { e.stopPropagation(); if (confirm(`Apagar ${row.data.name}?`)) api.remove([row.id]); }}>✕</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+      <Panel className="red">
+        {current ? <NpcSheet row={current} campaignId={campaignId} secret={secret} onChange={(patch) => api.update(current.id, patch)} />
+          : <div className="empty">Selecione ou crie um NPC.</div>}
+      </Panel>
     </div>
   );
 }
