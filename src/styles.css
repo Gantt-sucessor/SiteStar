@@ -456,6 +456,9 @@ select option { background: var(--panel-solid); }
 .kicker { font-family: var(--font-head); font-size: 0.62rem; letter-spacing: 0.35em; color: var(--holo); text-transform: uppercase; }
 details.talent { border-bottom: 1px solid rgba(110, 190, 255, 0.08); padding: 6px 0; }
 details.talent summary { cursor: pointer; }
+.legal h3 { color: var(--holo); margin-top: 1.4em; }
+.legal ul { padding-left: 20px; }
+.legal li { margin-bottom: 6px; }
 .power-dc { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); }
 .power-dc b { color: var(--saber-blue); font-weight: 400; }
 

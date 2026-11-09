@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, NavLink, Route, Routes, Link } from 'react-router-dom';
+import { BrowserRouter, Navigate, NavLink, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { isConfigured } from './lib/supabase';
 import { AuthProvider, useAuth, signOut } from './lib/auth';
 import { RollTargetProvider } from './lib/rollTarget';
@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import CharacterWizard from './pages/CharacterWizard';
 import CharacterPage from './pages/CharacterPage';
 import CampaignPage from './pages/CampaignPage';
+import { Privacy, Terms } from './pages/Legal';
 
 const INTRO_KEY = 'holocron:intro-seen';
 
@@ -45,6 +46,7 @@ function TopBar({ onIntro }) {
 
 function Shell() {
   const { user, loading } = useAuth();
+  const { pathname } = useLocation();
   const [intro, setIntro] = useState(false);
 
   useEffect(() => {
@@ -58,6 +60,10 @@ function Shell() {
     try { sessionStorage.setItem(INTRO_KEY, '1'); } catch { /* noop */ }
     setIntro(false);
   };
+
+  // Páginas públicas (exigidas pelo Google para publicar o login)
+  if (pathname === '/privacidade') return <div className="app"><Privacy /></div>;
+  if (pathname === '/termos') return <div className="app"><Terms /></div>;
 
   if (loading) {
     return <div className="app"><div className="loader"><div className="saber" />ESTABELECENDO CONEXÃO</div></div>;

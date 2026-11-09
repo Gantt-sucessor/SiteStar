@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { signIn } from '../lib/auth';
 import { QUOTES } from '../data/rules';
 
@@ -46,6 +47,9 @@ export default function Login() {
         </div>
 
         <p className="quote">“{quote[0]}”<b>— {quote[1]}</b></p>
+        <p className="tiny dim" style={{ marginTop: 30 }}>
+          Projeto de fã, sem fins lucrativos · <Link to="/privacidade">Política de Privacidade</Link> · <Link to="/termos">Termos de Uso</Link>
+        </p>
       </div>
     </div>
   );
