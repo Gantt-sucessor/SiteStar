@@ -1,0 +1,6 @@
+Coloque aqui o arquivo da música de abertura com o nome exato:
+
+    tema.mp3
+
+Ele toca automaticamente quando o logo STAR WARS aparece na abertura.
+Se o arquivo não existir, a abertura funciona normalmente, só que sem som.
