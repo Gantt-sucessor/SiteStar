@@ -144,7 +144,7 @@ create policy "editar meu perfil" on public.profiles for update to authenticated
 
 drop policy if exists "ver campanhas" on public.campaigns;
 create policy "ver campanhas" on public.campaigns for select to authenticated
-  using (public.is_campaign_member(id));
+  using (master_id = auth.uid() or public.is_campaign_member(id));
 drop policy if exists "criar campanha" on public.campaigns;
 create policy "criar campanha" on public.campaigns for insert to authenticated
   with check (master_id = auth.uid());
