@@ -69,6 +69,7 @@ export default function CharacterWizard() {
       }
       if (!final.languages?.length) final.languages = d.sp?.languages ?? ['Básico'];
       delete final.assign;
+      delete final.methodSaves;
       const row = await saveCharacter({ data: final, campaign_id: campaignId || null });
       localStorage.removeItem('holocron:draft');
       sfx.saber();
@@ -253,14 +254,19 @@ function StepAbilities({ data, set, d }) {
   const assign = data.assign || {};
   const pool = method === 'array' ? STANDARD_ARRAY : data.rolledPool || [];
 
+  // Cada método guarda os próprios valores, para não perder nada ao alternar entre as abas
   const setMethod = (m) => {
-    const base = m === 'pointbuy' ? { vig: 8, des: 8, con: 8, int: 8, sab: 8, car: 8 } : m === 'manual' ? { vig: 10, des: 10, con: 10, int: 10, sab: 10, car: 10 } : data.base;
-    set({ abilityMethod: m, base, assign: {} });
+    if (m === method) return;
+    const saves = { ...(data.methodSaves || {}), [method]: { base: data.base, assign } };
+    const restored = saves[m];
+    const fill = m === 'manual' ? 10 : 8;
+    const base = restored?.base ?? { vig: fill, des: fill, con: fill, int: fill, sab: fill, car: fill };
+    set({ abilityMethod: m, base, assign: restored?.assign ?? {}, methodSaves: saves });
   };
 
   const assignFromPool = (ability, idx) => {
     const next = { ...assign };
-    for (const k of Object.keys(next)) if (next[k] === idx) delete next[k];
+    for (const k of Object.keys(next)) if (next[k] === Number(idx)) delete next[k];
     if (idx === '') delete next[ability]; else next[ability] = Number(idx);
     const base = { ...data.base };
     for (const a of ABILITIES) base[a.id] = next[a.id] !== undefined ? pool[next[a.id]] : 8;
