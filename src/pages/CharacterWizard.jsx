@@ -12,6 +12,7 @@ import { useAuth } from '../lib/auth';
 import { Panel, FeatPicker, TalentPicker, meetsPrereq } from '../components/Sheet';
 import { sfx } from '../lib/sfx';
 import { FeatBrowser } from '../components/Browsers';
+import DroidShop from '../components/DroidShop';
 import { hyperspace } from '../components/Starfield';
 
 const STEPS = ['Conceito', 'Espécie', 'Classe', 'Habilidades', 'Perícias', 'Talentos', 'Aptidão', 'A Força', 'Equipamento', 'Revisão'];
@@ -72,6 +73,7 @@ export default function CharacterWizard() {
       if (!final.languages?.length) final.languages = d.sp?.languages ?? ['Básico'];
       delete final.assign;
       delete final.methodSaves;
+      delete final.droidBudget; // sobras do orçamento de dróide se perdem
       const row = await saveCharacter({ data: final, campaign_id: campaignId || null });
       localStorage.removeItem('holocron:draft');
       sfx.saber();
@@ -502,7 +504,7 @@ function StepForce({ data, set, d }) {
 }
 
 function StepGear({ data, set, d }) {
-  const [tab, setTab] = useState('armas');
+  const [tab, setTab] = useState(d.droid ? 'droide' : 'armas');
   if (!d.cls) return <Panel title="Equipamento"><div className="empty">Escolha uma classe primeiro.</div></Panel>;
   const rollCredits = () => {
     const r = rollDice(d.cls.credits.dice);
@@ -526,7 +528,7 @@ function StepGear({ data, set, d }) {
       {d.sp?.id === 'keldor' && <div className="info-box small" style={{ marginBottom: 12 }}>Kel Dor começam com máscara antioxidante e óculos sem custo.</div>}
 
       <div className="tabs">
-        {[['armas', 'Armas'], ['armadura', 'Armadura'], ['itens', 'Itens']].map(([id, l]) => <button key={id} className={`tab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)}>{l}</button>)}
+        {[...(d.droid ? [['droide', 'Sistemas de dróide']] : []), ['armas', 'Armas'], ['armadura', 'Armadura'], ['itens', 'Itens']].map(([id, l]) => <button key={id} className={`tab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)}>{l}</button>)}
       </div>
 
       {tab === 'armas' && (
@@ -574,6 +576,8 @@ function StepGear({ data, set, d }) {
           })}
         </div>
       )}
+
+      {tab === 'droide' && d.droid && <DroidShop data={data} set={set} d={d} mode="wizard" />}
 
       {tab === 'itens' && (
         <div className="list">

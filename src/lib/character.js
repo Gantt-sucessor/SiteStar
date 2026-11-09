@@ -3,6 +3,7 @@ import {
   classById, speciesById, armorByName, featByName, FORCE_TREES, DROID_CATEGORIES, DROID_SIZES,
 } from '../data/rules.js';
 import { anyClassById, treesOfClass, classFeatures, ALL_TREES } from '../data/prestige.js';
+import { droidArmorByName, droidSystemById, primaryLocomotion, locomotionSpeed } from '../data/droidSystems.js';
 
 export const abilityMod = (score) => Math.floor((score - 10) / 2);
 
@@ -82,7 +83,12 @@ export function derive(c) {
   const condition = CONDITION_TRACK[c.condition || 0] ?? CONDITION_TRACK[0];
   const cp = condition.penalty;
 
-  const armor = c.armor ? armorByName(c.armor) : null;
+  // Dróides podem ter armadura embutida; ela não acumula com armadura vestida (vale a maior)
+  let armor = c.armor ? armorByName(c.armor) : null;
+  const builtIn = droid && c.droidArmor ? droidArmorByName(c.droidArmor) : null;
+  if (builtIn && (!armor || builtIn.ref >= armor.ref)) armor = { ...builtIn, fort: 0, builtIn: true };
+  const droidSystems = droid ? (c.droidSystems || []) : [];
+  const hasSystem = (id) => droidSystems.some((x) => x.id === id);
   const armorProficient = armor ? has(`Proficiência em Armadura (${armor.category})`) : true;
   const armorSkillPenalty = armor && !armorProficient ? ARMOR_PENALTY[armor.category] : 0;
   const secondSkin = armor && armorProficient && hasTalent('Segunda Pele') ? 1 : 0;
@@ -128,7 +134,7 @@ export function derive(c) {
   const fpDice = level >= 15 ? 3 : level >= 8 ? 2 : 1;
 
   let speed = droid ? droidSize.speed : (sp?.speed ?? 6);
-  if (armor && armor.category !== 'leve' && !(armorProficient && hasTalent('Juggernauta'))) speed = speed >= 6 ? 4 : 3;
+  if (armor && !armor.builtIn && armor.category !== 'leve' && !(armorProficient && hasTalent('Juggernauta'))) speed = speed >= 6 ? 4 : 3;
   if (hasTalent('Passo Largo') && (!armor || armor.category === 'leve')) speed += 2;
 
   const classSkills = new Set(classes.flatMap((x) => x.cls.classSkills || []));
@@ -139,7 +145,7 @@ export function derive(c) {
     const isTrained = trained.has(s.name);
     const usable = !s.trainedOnly || isTrained;
     const mod = halfLevel + mods[s.ability] + (isTrained ? 5 : 0) + (focus.has(s.name) ? 5 : 0)
-      + (s.armor ? armorSkillPenalty : 0) + (sp?.skillBonus?.[s.name] ?? 0) + (droid && s.name === 'Furtividade' ? droidSize.stealth : 0) + cp;
+      + (s.armor ? armorSkillPenalty : 0) + (sp?.skillBonus?.[s.name] ?? 0) + (droid && s.name === 'Furtividade' ? droidSize.stealth : 0) + (s.name === 'Percepção' && hasSystem('sensores-aprimorados') ? 2 : 0) + cp;
     const viaFeat = feats.includes(`Treinamento em Perícia (${s.name})`);
     return { ...s, trained: isTrained, viaFeat, focus: focus.has(s.name), usable, mod, classSkill: classSkills.has(s.name) || (s.force && forceSensitive) };
   });
@@ -190,7 +196,10 @@ export function derive(c) {
 
   return {
     cls, sp, level, halfLevel, scores, mods, feats, autoFeats, has, forceSensitive, bab,
-    droid, droidCat, droidSize, abilities, spLabel, spMods,
+    droid, droidCat, droidSize, abilities, spLabel, spMods, droidSystems,
+    droidSpeeds: droid ? [primaryLocomotion(droidSize.id), ...droidSystems.filter((x) => x.id.startsWith('loco-')).map((x) => x.id.slice(5))]
+      .map((t) => ({ type: t, speed: locomotionSpeed(t, droidSize.id) })) : [],
+    droidShield: droid ? Math.max(0, ...droidSystems.map((x) => droidSystemById(x.id)?.shield || 0)) : 0,
     classes, classLevels, classLabel, levelOf, classSkills, heroic, extraClassFeats,
     techniqueSlots, secretSlots, damageReduction, features, talentTrees,
     condition, armor, armorProficient, defenses, threshold, hpMax, hpCurrent, hpComputed,

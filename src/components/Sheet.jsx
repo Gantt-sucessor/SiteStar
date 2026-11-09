@@ -6,6 +6,7 @@ import {
 import { derive, getClassLevels } from '../lib/character';
 import { ALL_TREES, REPEATABLE_TALENTS, FORCE_TECHNIQUES, FORCE_SECRETS, ALL_CLASSES, anyClassById } from '../data/prestige';
 import LevelUp from './LevelUp';
+import DroidShop from './DroidShop';
 import { FeatBrowser, TalentBrowser } from './Browsers';
 import { fmtMod, d20Formula } from '../lib/dice';
 import { sendRoll } from '../lib/rolls';
@@ -277,6 +278,13 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
                 <div className="k">Iniciativa</div><div className="v">{fmtMod(d.initiative)}</div>
               </div>
             </div>
+            {d.droid && (d.droidSpeeds.length > 1 || d.droidShield > 0 || d.armor?.builtIn) && (
+              <div className="tiny muted" style={{ marginTop: 8 }}>
+                {d.droidSpeeds.length > 1 && <div>Locomoção: {d.droidSpeeds.map((x) => `${x.type} ${x.speed}`).join(' · ')}</div>}
+                {d.droidShield > 0 && <div className="yellow">Escudo: VE {d.droidShield} (reduz o dano; cai 5 quando o dano ≥ VE)</div>}
+                {d.armor?.builtIn && <div>Armadura embutida: {d.armor.name} (Ref +{d.armor.ref})</div>}
+              </div>
+            )}
             {editable && (
               <details style={{ marginTop: 10 }}>
                 <summary className="tiny muted" style={{ cursor: 'pointer' }}>Bônus diversos</summary>
@@ -311,7 +319,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
           {tab === 'combate' && <CombatTab d={d} data={data} set={set} roll={roll} editable={editable} />}
           {tab === 'forca' && <ForceTab d={d} data={data} set={set} roll={roll} editable={editable} />}
           {tab === 'talentos' && <FeatsTab d={d} data={data} set={set} editable={editable} openBrowser={setBrowser} />}
-          {tab === 'equip' && <GearTab data={data} set={set} editable={editable} />}
+          {tab === 'equip' && <GearTab d={d} data={data} set={set} editable={editable} />}
           {tab === 'detalhes' && <DetailsTab d={d} data={data} set={set} setDeep={setDeep} editable={editable} isMaster={isMaster} />}
         </Panel>
       </div>
@@ -700,7 +708,7 @@ function FeatsTab({ d, data, set, editable, openBrowser }) {
   );
 }
 
-function GearTab({ data, set, editable }) {
+function GearTab({ d, data, set, editable }) {
   const [pick, setPick] = useState('');
   const [customName, setCustomName] = useState('');
   const [pay, setPay] = useState(false);
@@ -765,6 +773,11 @@ function GearTab({ data, set, editable }) {
             <input placeholder="Item personalizado" value={customName} onChange={(e) => setCustomName(e.target.value)} style={{ flex: 1 }} />
             <button className="btn" disabled={!customName.trim()} onClick={() => { add(customName.trim(), 0); setCustomName(''); }}>Adicionar</button>
           </div>
+        </div>
+      )}
+      {d.droid && (
+        <div style={{ borderTop: '1px dashed var(--line)', paddingTop: 14 }}>
+          <DroidShop data={data} set={set} d={d} mode="sheet" editable={editable} />
         </div>
       )}
     </div>
