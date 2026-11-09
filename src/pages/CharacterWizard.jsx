@@ -10,6 +10,7 @@ import { saveCharacter, listMyCampaigns } from '../lib/data';
 import { useAuth } from '../lib/auth';
 import { Panel, FeatPicker, TalentPicker, meetsPrereq } from '../components/Sheet';
 import { sfx } from '../lib/sfx';
+import { FeatBrowser } from '../components/Browsers';
 import { hyperspace } from '../components/Starfield';
 
 const STEPS = ['Conceito', 'Espécie', 'Classe', 'Habilidades', 'Perícias', 'Talentos', 'Aptidão', 'A Força', 'Equipamento', 'Revisão'];
@@ -373,6 +374,7 @@ function StepSkills({ data, set, d }) {
 
 function StepFeats({ data, set, d }) {
   const chosen = data.feats || [];
+  const [browse, setBrowse] = useState(false);
   return (
     <Panel title="Talentos" aside={<span className={`counter ${chosen.length === d.featSlots ? 'ok' : chosen.length > d.featSlots ? 'over' : ''}`}>{chosen.length}/{d.featSlots}</span>}>
       <p className="small muted">No 1º nível você escolhe 1 talento{d.sp?.bonusFeat ? ' + 1 bônus por ser humano' : ''}. Os talentos abaixo já vêm de graça:</p>
@@ -393,6 +395,8 @@ function StepFeats({ data, set, d }) {
         ))}
       </div>
       <div style={{ marginTop: 12 }}><FeatPicker d={d} data={data} onAdd={(f) => set({ feats: [...chosen, f] })} /></div>
+      <button className="btn yellow" style={{ marginTop: 10 }} onClick={() => setBrowse(true)}>Explorar todos os talentos com descrição</button>
+      {browse && <FeatBrowser d={d} data={data} onClose={() => setBrowse(false)} onAdd={(f) => set({ feats: [...chosen, f] })} />}
     </Panel>
   );
 }

@@ -6,6 +6,7 @@ import {
 import { derive, getClassLevels } from '../lib/character';
 import { ALL_TREES, REPEATABLE_TALENTS, FORCE_TECHNIQUES, FORCE_SECRETS, ALL_CLASSES, anyClassById } from '../data/prestige';
 import LevelUp from './LevelUp';
+import { FeatBrowser, TalentBrowser } from './Browsers';
 import { fmtMod, d20Formula } from '../lib/dice';
 import { sendRoll } from '../lib/rolls';
 import { sfx } from '../lib/sfx';
@@ -73,6 +74,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
   const [hpDelta, setHpDelta] = useState('');
   const [levelInfo, setLevelInfo] = useState(null);
   const [levelOpen, setLevelOpen] = useState(false);
+  const [browser, setBrowser] = useState(null); // 'feats' | 'talents'
   const d = useMemo(() => derive(data), [data]);
   const character = { id: characterId, name: data.name || 'Sem nome' };
 
@@ -158,6 +160,31 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
       </div>
 
       {levelOpen && <LevelUp d={d} data={data} onConfirm={levelUp} onClose={() => setLevelOpen(false)} />}
+      {browser === 'feats' && <FeatBrowser d={d} data={data} editable={editable} onClose={() => setBrowser(null)} onAdd={(f) => set({ feats: [...(data.feats || []), f] })} />}
+      {browser === 'talents' && <TalentBrowser d={d} data={data} editable={editable} onClose={() => setBrowser(null)} onAdd={(t) => set({ talents: [...(data.talents || []), t] })} />}
+
+      {editable && d.cls && (() => {
+        const pend = [];
+        const f = d.featSlots - (data.feats || []).length;
+        const t = d.talentSlots - (data.talents || []).length;
+        const pw = d.powerSlots - (data.forcePowers || []).length;
+        const tq = d.techniqueSlots - (data.forceTechniques || []).length;
+        const sc = d.secretSlots - (data.forceSecrets || []).length;
+        const sk = d.trainedSlots - (data.trainedSkills || []).length;
+        if (f > 0) pend.push(<button key="f" className="btn sm yellow" onClick={() => setBrowser('feats')}>{f} talento{f > 1 ? 's' : ''}</button>);
+        if (t > 0) pend.push(<button key="t" className="btn sm yellow" onClick={() => setBrowser('talents')}>{t} aptidão{t > 1 ? 'ões' : ''}</button>);
+        if (pw > 0) pend.push(<button key="p" className="btn sm yellow" onClick={() => setTab('forca')}>{pw} poder{pw > 1 ? 'es' : ''} da Força</button>);
+        if (tq > 0) pend.push(<button key="q" className="btn sm yellow" onClick={() => setTab('forca')}>{tq} Técnica{tq > 1 ? 's' : ''} da Força</button>);
+        if (sc > 0) pend.push(<button key="s" className="btn sm yellow" onClick={() => setTab('forca')}>{sc} Segredo{sc > 1 ? 's' : ''} da Força</button>);
+        if (sk > 0) pend.push(<button key="k" className="btn sm yellow" onClick={() => setTab('pericias')}>{sk} perícia{sk > 1 ? 's' : ''} treinada{sk > 1 ? 's' : ''}</button>);
+        if (!pend.length) return null;
+        return (
+          <div className="info-box row" style={{ marginTop: 12, gap: 8 }}>
+            <span className="small"><b className="yellow">Escolhas pendentes:</b> clique para ver as opções</span>
+            {pend}
+          </div>
+        );
+      })()}
 
       {levelInfo && (
         <div className="info-box" style={{ marginTop: 12 }}>
@@ -282,7 +309,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
           {tab === 'pericias' && <SkillsTab d={d} data={data} set={set} roll={roll} editable={editable} />}
           {tab === 'combate' && <CombatTab d={d} data={data} set={set} roll={roll} editable={editable} />}
           {tab === 'forca' && <ForceTab d={d} data={data} set={set} roll={roll} editable={editable} />}
-          {tab === 'talentos' && <FeatsTab d={d} data={data} set={set} editable={editable} />}
+          {tab === 'talentos' && <FeatsTab d={d} data={data} set={set} editable={editable} openBrowser={setBrowser} />}
           {tab === 'equip' && <GearTab data={data} set={set} editable={editable} />}
           {tab === 'detalhes' && <DetailsTab d={d} data={data} set={set} setDeep={setDeep} editable={editable} isMaster={isMaster} />}
         </Panel>
@@ -589,14 +616,14 @@ export function TalentPicker({ d, data, onAdd }) {
   );
 }
 
-function FeatsTab({ d, data, set, editable }) {
+function FeatsTab({ d, data, set, editable, openBrowser }) {
   const chosen = data.feats || [];
   const talents = data.talents || [];
   return (
     <div className="stack" style={{ gap: 18 }}>
       <div>
         <div className="row between">
-          <h3 className="yellow" style={{ margin: 0 }}>Talentos</h3>
+          <div className="row"><h3 className="yellow" style={{ margin: 0 }}>Talentos</h3><button className="btn sm" onClick={() => openBrowser('feats')}>Explorar talentos</button></div>
           <span className={`counter ${chosen.length === d.featSlots ? 'ok' : chosen.length > d.featSlots ? 'over' : ''}`}>{chosen.length}/{d.featSlots} escolhidos</span>
         </div>
         <div className="tiny muted" style={{ margin: '4px 0 10px' }}>
@@ -635,7 +662,7 @@ function FeatsTab({ d, data, set, editable }) {
 
       <div>
         <div className="row between">
-          <h3 className="yellow" style={{ margin: 0 }}>Aptidões</h3>
+          <div className="row"><h3 className="yellow" style={{ margin: 0 }}>Aptidões</h3><button className="btn sm" onClick={() => openBrowser('talents')}>Explorar árvores</button></div>
           <span className={`counter ${talents.length === d.talentSlots ? 'ok' : talents.length > d.talentSlots ? 'over' : ''}`}>{talents.length}/{d.talentSlots}</span>
         </div>
         <div className="list" style={{ marginTop: 8 }}>
