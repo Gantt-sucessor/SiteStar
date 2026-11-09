@@ -26,6 +26,10 @@ export default function CharacterWizard() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [step, setStep] = useState(0);
+  const [restored] = useState(() => {
+    try { const dr = JSON.parse(localStorage.getItem('holocron:draft') || 'null'); return Boolean(dr && (dr.name || dr.species || dr.classId)); } catch { return false; }
+  });
+  const [showRestored, setShowRestored] = useState(true);
   const [data, setData] = useState(() => {
     try {
       const draft = JSON.parse(localStorage.getItem('holocron:draft') || 'null');
@@ -102,6 +106,21 @@ export default function CharacterWizard() {
         </div>
         <button className="btn sm ghost" onClick={reset}>Recomeçar</button>
       </div>
+
+      {restored && showRestored && (
+        <div className="info-box row between" style={{ marginBottom: 14 }}>
+          <span className="small">
+            <b className="yellow">Continuando o rascunho anterior</b>
+            {data.name ? <> de <b>{data.name}</b></> : null}
+            {d.spLabel ? <> · {d.spLabel}</> : null}{d.cls ? <> · {d.cls.name}</> : null}.
+            {' '}O assistente guarda o personagem em andamento para você não perder nada.
+          </span>
+          <div className="row">
+            <button className="btn sm" onClick={() => setShowRestored(false)}>Continuar</button>
+            <button className="btn sm yellow" onClick={() => { localStorage.removeItem('holocron:draft'); setData({ ...newCharacter(), player: profile?.display_name || '' }); setShowRestored(false); go(0); }}>Começar do zero</button>
+          </div>
+        </div>
+      )}
 
       <div className="stepper">
         {STEPS.map((s, i) => (
@@ -249,8 +268,10 @@ function StepSpecies({ data, set, d }) {
 function StepClass({ data, set, d }) {
   const sel = CLASSES.find((c) => c.id === data.classId);
   const isDroid = d?.droid;
+  const droidNote = isDroid ? <div className="info-box small" style={{ marginBottom: 12 }}>Seu personagem é um <b>dróide</b>, então a classe Jedi fica bloqueada. Para ser Jedi, volte ao passo <b>02 Espécie</b> e escolha uma espécie viva.</div> : null;
   return (
     <Panel title="Escolha sua classe heróica">
+      {droidNote}
       <div className="pick-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
         {CLASSES.map((c) => (
           <button key={c.id} style={{ '--pc': c.color }} className={`pick ${data.classId === c.id ? 'selected' : ''} ${isDroid && c.id === 'jedi' ? 'disabled' : ''}`}
@@ -263,6 +284,7 @@ function StepClass({ data, set, d }) {
               <span className="tag">PV {c.hp}+Con</span>
               <span className="tag">BBA {c.bab === 'full' ? '+1' : '+0'}</span>
               <span className="tag">{c.trainedSkills}+Int perícias</span>
+              {isDroid && c.id === 'jedi' && <span className="tag red">Dróides não podem ser Jedi</span>}
             </div>
           </button>
         ))}
