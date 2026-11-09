@@ -81,10 +81,15 @@ Para publicar: suba a pasta para o GitHub, importe o repositório na [Vercel](ht
 | `src/pages/CampaignPage.jsx` | Visões do mestre e do jogador |
 | `supabase/schema.sql` | Tabelas, segurança (RLS) e tempo real |
 
+## Multiclasse e classes de prestígio
+
+- **Subir de nível** abre uma tela para escolher entre continuar na classe, pegar uma nova classe heróica (multiclasse) ou entrar numa das **12 classes de prestígio** do livro. A tela confere os requisitos de cada uma.
+- A ficha soma o BBA de cada classe, usa o maior bônus de defesa entre elas, rola os PV com o dado da classe escolhida e conta aptidões, talentos bônus, Técnicas e Segredos da Força por classe.
+- Em **Detalhes → Classes e níveis** dá para corrigir os níveis manualmente.
+
 ## Limitações conhecidas
 
-- **Multiclasse**: a ficha calcula uma única classe. Para personagens multiclasse, ajuste os PV e os bônus pelos campos manuais.
-- **Fora do cálculo automático**:
-  - classes de prestígio, veículos e naves;
+- **Fora do cálculo automático:**
+  - veículos e naves;
   - aumentos de habilidade por nível, que são registrados em **Detalhes → Valores de habilidade**;
-  - pré-requisitos de talentos, que são exibidos mas não bloqueiam a escolha.
+  - pré-requisitos de talentos e de classes de prestígio, que são exibidos mas não bloqueiam a escolha (o mestre decide).

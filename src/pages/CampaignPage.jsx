@@ -232,7 +232,7 @@ function PartyList({ characters, profiles }) {
           <div key={c.id} className="list-row">
             <div>
               <div className="name yellow">{c.name}</div>
-              <div className="sub">{d.sp?.name} · {d.cls?.name} {d.level} · {profiles[c.owner_id]?.display_name}</div>
+              <div className="sub">{d.sp?.name} · {d.classLabel} · {profiles[c.owner_id]?.display_name}</div>
             </div>
             <span className="tag">{d.condition.step === 0 ? 'Bem' : `Condição ${d.condition.label}`}</span>
           </div>
@@ -370,7 +370,7 @@ function CharCard({ row, owner, onOpen }) {
       <div className="row between" style={{ flexWrap: 'nowrap' }}>
         <div style={{ minWidth: 0 }}>
           <div className="cname">{row.name}</div>
-          <div className="tiny muted">{d.sp?.name} · {d.cls?.name} {d.level} · {owner?.display_name}</div>
+          <div className="tiny muted">{d.sp?.name} · {d.classLabel} · {owner?.display_name}</div>
         </div>
         {owner?.avatar_url ? <img className="avatar" src={owner.avatar_url} alt="" /> : null}
       </div>

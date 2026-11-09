@@ -3,7 +3,9 @@ import {
   ABILITIES, CONDITION_TRACK, FEATS, FORCE_POWERS, FORCE_TREES, WEAPONS, ARMORS, GEAR, WEAPON_GROUPS,
   SKILLS, LANGUAGES, FEAT_LEVELS, ABILITY_INCREASE_LEVELS, featByName, powerByName,
 } from '../data/rules';
-import { derive } from '../lib/character';
+import { derive, getClassLevels } from '../lib/character';
+import { ALL_TREES, REPEATABLE_TALENTS, FORCE_TECHNIQUES, FORCE_SECRETS, ALL_CLASSES, anyClassById } from '../data/prestige';
+import LevelUp from './LevelUp';
 import { fmtMod, d20Formula } from '../lib/dice';
 import { sendRoll } from '../lib/rolls';
 import { sfx } from '../lib/sfx';
@@ -49,17 +51,11 @@ function Pips({ max, value, onChange, variant = '' }) {
 }
 
 export function talentPool(d) {
-  const trees = [...(d.cls?.trees ?? [])];
-  if (d.forceSensitive) trees.push(...FORCE_TREES);
-  return trees;
+  return d.talentTrees;
 }
 
 export function findTalent(name, d) {
-  for (const tree of talentPool(d)) {
-    const t = tree.talents.find(([n]) => n === name);
-    if (t) return { tree: tree.name, name: t[0], desc: t[1], prereq: t[2] ?? [] };
-  }
-  for (const tree of FORCE_TREES) {
+  for (const tree of [...talentPool(d), ...Object.values(ALL_TREES)]) {
     const t = tree.talents.find(([n]) => n === name);
     if (t) return { tree: tree.name, name: t[0], desc: t[1], prereq: t[2] ?? [] };
   }
@@ -76,6 +72,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
   const [tab, setTab] = useState('pericias');
   const [hpDelta, setHpDelta] = useState('');
   const [levelInfo, setLevelInfo] = useState(null);
+  const [levelOpen, setLevelOpen] = useState(false);
   const d = useMemo(() => derive(data), [data]);
   const character = { id: characterId, name: data.name || 'Sem nome' };
 
@@ -109,28 +106,24 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
     roll(formula, 'Ponto de Força', 'force-point', 'Some ao teste que você quer melhorar.');
   };
 
-  const levelUp = async () => {
-    if (!d.cls) return;
+  const levelUp = async (cls, gainsPreview) => {
+    setLevelOpen(false);
     const next = d.level + 1;
     if (next > 20) return;
-    if (!confirm(`Subir ${data.name || 'o personagem'} para o nível ${next}? Os PV serão rolados (1d${d.cls.hitDie} + Con).`)) return;
     const entry = await sendRoll({
-      formula: `1d${d.cls.hitDie}${d.mods.con ? fmtMod(d.mods.con) : ''}`,
-      label: `Subiu para o nível ${next} — PV`, kind: 'level', campaignId, character,
+      formula: `1d${cls.hitDie}${d.mods.con ? fmtMod(d.mods.con) : ''}`,
+      label: `Subiu para o nível ${next} (${cls.name}) — PV`, kind: 'level', campaignId, character,
     });
     const gained = Math.max(1, entry.total);
     const levelRolls = [...(data.hp?.levelRolls || [])].slice(0, d.level - 1);
     levelRolls.push(gained);
-    const gains = [`+${gained} PV`];
-    if (FEAT_LEVELS.includes(next)) gains.push('1 talento');
-    if (next % 2 === 0) gains.push(`1 talento bônus de ${d.cls.name}`);
-    else gains.push('1 aptidão');
-    if (ABILITY_INCREASE_LEVELS.includes(next)) gains.push('+1 em duas habilidades');
-    if (next % 2 === 0) gains.push('+1 em todas as perícias e no dano');
+    const classLevels = getClassLevels(data);
+    classLevels[cls.id] = (classLevels[cls.id] || 0) + 1;
+    const destiny = cls.id === 'discipulo-forca' ? (data.destinyPoints || 0) + 2 : data.destinyPoints;
     sfx.saber();
-    setLevelInfo({ level: next, gains });
+    setLevelInfo({ level: next, gains: [`+${gained} PV`, ...gainsPreview.slice(1)] });
     onChange({
-      ...data, level: next, xp: Math.max(data.xp || 0, 0),
+      ...data, level: next, classLevels, destinyPoints: destiny,
       hp: { ...data.hp, levelRolls, current: (data.hp?.current ?? d.hpMax) + gained },
       forcePoints: null,
     });
@@ -144,7 +137,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             {editable ? <input value={data.name} placeholder="Nome do personagem" onChange={(e) => set({ name: e.target.value })} /> : data.name || 'Sem nome'}
           </h1>
           <div className="sheet-sub">
-            {d.sp?.name ?? 'Espécie?'} · {d.cls?.name ?? 'Classe?'} nível {d.level}
+            {d.sp?.name ?? 'Espécie?'} · {d.classLabel}{d.classes.length > 1 ? ` (nível ${d.level})` : ''}
             {data.player && <> · jogador(a) {data.player}</>}
           </div>
           <div className="row" style={{ marginTop: 6, gap: 6 }}>
@@ -159,14 +152,16 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             <label className="field" style={{ width: 120 }}>XP
               <input type="number" value={data.xp || 0} onChange={(e) => set({ xp: Number(e.target.value) || 0 })} style={{ width: '100%' }} />
             </label>
-            <button className="btn yellow" onClick={levelUp} disabled={d.level >= 20}>Subir de nível</button>
+            <button className="btn yellow" onClick={() => setLevelOpen(true)} disabled={d.level >= 20 || !d.cls}>Subir de nível</button>
           </div>
         )}
       </div>
 
+      {levelOpen && <LevelUp d={d} data={data} onConfirm={levelUp} onClose={() => setLevelOpen(false)} />}
+
       {levelInfo && (
         <div className="info-box" style={{ marginTop: 12 }}>
-          <b className="yellow">Nível {levelInfo.level}!</b> Você ganhou: {levelInfo.gains.join(', ')}. Adicione as escolhas nas abas Talentos & Aptidões e Detalhes.
+          <b className="yellow">Nível {levelInfo.level}!</b> Você ganhou: {levelInfo.gains.join('; ')}. Adicione as escolhas nas abas Talentos & Aptidões, A Força e Detalhes.
           <button className="btn sm ghost" style={{ marginLeft: 8 }} onClick={() => setLevelInfo(null)}>OK</button>
         </div>
       )}
@@ -249,7 +244,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             </div>
             <div className="stat-grid" style={{ marginTop: 8 }}>
               <div className="stat"><div className="k">Limiar</div><div className="v">{d.threshold}</div></div>
-              <div className="stat"><div className="k">Velocidade</div><div className="v">{d.speed}</div></div>
+              <div className="stat"><div className="k">{d.damageReduction ? 'Veloc. / RD' : 'Velocidade'}</div><div className="v">{d.speed}{d.damageReduction ? <span className="small muted"> / {d.damageReduction}</span> : null}</div></div>
               <div className="stat clickable" onClick={() => roll(d20Formula(d.initiative), 'Iniciativa', 'initiative')}>
                 <div className="k">Iniciativa</div><div className="v">{fmtMod(d.initiative)}</div>
               </div>
@@ -489,6 +484,42 @@ function ForceTab({ d, data, set, roll, editable }) {
           <button className="btn" disabled={!pick} onClick={() => { set({ forcePowers: [...powers, pick] }); setPick(''); }}>Aprender</button>
         </div>
       )}
+      {(d.techniqueSlots > 0 || (data.forceTechniques || []).length > 0) && (
+        <ForceExtras title="Técnicas da Força" field="forceTechniques" list={FORCE_TECHNIQUES} slots={d.techniqueSlots} data={data} set={set} editable={editable} repeatable={['Recuperação de Ponto de Força', 'Domínio de Poder da Força']} />
+      )}
+      {(d.secretSlots > 0 || (data.forceSecrets || []).length > 0) && (
+        <ForceExtras title="Segredos da Força" field="forceSecrets" list={FORCE_SECRETS} slots={d.secretSlots} data={data} set={set} editable={editable} />
+      )}
+    </div>
+  );
+}
+
+function ForceExtras({ title, field, list, slots, data, set, editable, repeatable = [] }) {
+  const [pick, setPick] = useState('');
+  const chosen = data[field] || [];
+  return (
+    <div>
+      <div className="row between">
+        <h3 className="yellow" style={{ margin: 0 }}>{title}</h3>
+        <span className={`counter ${chosen.length === slots ? 'ok' : chosen.length > slots ? 'over' : ''}`}>{chosen.length}/{slots}</span>
+      </div>
+      <div className="list" style={{ marginTop: 6 }}>
+        {chosen.map((n, i) => (
+          <div key={`${n}-${i}`} className="list-row">
+            <div><div className="name">{n}</div><div className="sub">{list.find((x) => x.name === n)?.desc}</div></div>
+            {editable && <button className="btn sm ghost red" onClick={() => set({ [field]: chosen.filter((_, j) => j !== i) })}>Remover</button>}
+          </div>
+        ))}
+      </div>
+      {editable && (
+        <div className="row" style={{ marginTop: 8, flexWrap: 'nowrap' }}>
+          <select value={pick} onChange={(e) => setPick(e.target.value)} style={{ flex: 1 }}>
+            <option value="">Escolher...</option>
+            {list.map((x) => <option key={x.name} value={x.name} disabled={chosen.includes(x.name) && !repeatable.includes(x.name)}>{x.name}</option>)}
+          </select>
+          <button className="btn" disabled={!pick} onClick={() => { set({ [field]: [...chosen, pick] }); setPick(''); }}>Adicionar</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -503,7 +534,7 @@ export function FeatPicker({ d, data, onAdd, filter }) {
   const options = filter ? FEATS.filter(filter) : FEATS;
   const skillChoices = pick === 'Foco em Perícia'
     ? d.skills.filter((s) => s.trained).map((s) => s.name)
-    : SKILLS.filter((s) => d.cls?.classSkills.includes(s.name) && !d.skills.find((x) => x.name === s.name)?.trained).map((s) => s.name);
+    : SKILLS.filter((s) => d.classSkills.has(s.name) && !d.skills.find((x) => x.name === s.name)?.trained).map((s) => s.name);
   const finalName = feat?.choice ? (choice ? `${pick} (${choice})` : '') : pick;
   return (
     <div className="stack">
@@ -544,9 +575,9 @@ export function TalentPicker({ d, data, onAdd }) {
         <select value={pick} onChange={(e) => setPick(e.target.value)} style={{ flex: 1 }}>
           <option value="">Escolher aptidão...</option>
           {talentPool(d).map((tree) => (
-            <optgroup key={tree.name} label={tree.name}>
+            <optgroup key={tree.name} label={`${tree.name} (${tree.from})`}>
               {tree.talents.map(([name]) => (
-                <option key={name} value={name} disabled={(data.talents || []).includes(name) && name !== 'Defesa com Sabre de Luz'}>{name}</option>
+                <option key={name} value={name} disabled={(data.talents || []).includes(name) && !REPEATABLE_TALENTS.includes(name)}>{name}</option>
               ))}
             </optgroup>
           ))}
@@ -569,7 +600,9 @@ function FeatsTab({ d, data, set, editable }) {
           <span className={`counter ${chosen.length === d.featSlots ? 'ok' : chosen.length > d.featSlots ? 'over' : ''}`}>{chosen.length}/{d.featSlots} escolhidos</span>
         </div>
         <div className="tiny muted" style={{ margin: '4px 0 10px' }}>
-          Talentos de nível {FEAT_LEVELS.filter((l) => l <= d.level).length}{d.sp?.bonusFeat ? ' + 1 humano' : ''}{d.cls ? ` + ${Math.floor(d.level / 2)} bônus de ${d.cls.name}` : ''}.
+          Talentos de nível {FEAT_LEVELS.filter((l) => l <= d.level).length}{d.sp?.bonusFeat ? ' + 1 humano' : ''}
+          {d.heroic.map((x) => ` + ${Math.floor(x.levels / 2)} bônus de ${x.cls.name}`).join('')}
+          {d.extraClassFeats ? ` + ${d.extraClassFeats} talento(s) inicial(is) de multiclasse` : ''}.
         </div>
         <div className="row" style={{ gap: 6, marginBottom: 10 }}>
           {d.autoFeats.map((f, i) => <span key={`a${i}`} className="tag blue" title="Automático (classe/espécie)">{f}</span>)}
@@ -589,7 +622,15 @@ function FeatsTab({ d, data, set, editable }) {
           })}
         </div>
         {editable && <div style={{ marginTop: 10 }}><FeatPicker d={d} data={data} onAdd={(f) => set({ feats: [...chosen, f] })} /></div>}
-        {d.cls && <details style={{ marginTop: 10 }}><summary className="tiny muted" style={{ cursor: 'pointer' }}>Lista de talentos bônus de {d.cls.name}</summary><div className="tiny muted" style={{ marginTop: 6 }}>{d.cls.bonusFeats.join(', ')}.</div></details>}
+        {d.heroic.map((x) => (
+          <details key={x.cls.id} style={{ marginTop: 10 }}>
+            <summary className="tiny muted" style={{ cursor: 'pointer' }}>Talentos bônus de {x.cls.name}{x.cls.id !== data.classId ? ' e talentos iniciais (multiclasse)' : ''}</summary>
+            <div className="tiny muted" style={{ marginTop: 6 }}>
+              {x.cls.id !== data.classId && <div><b>Iniciais (escolha 1):</b> {x.cls.startingFeats.join(', ')}.</div>}
+              <b>Bônus:</b> {x.cls.bonusFeats.join(', ')}.
+            </div>
+          </details>
+        ))}
       </div>
 
       <div>
@@ -614,6 +655,18 @@ function FeatsTab({ d, data, set, editable }) {
         </div>
         {editable && <div style={{ marginTop: 10 }}><TalentPicker d={d} data={data} onAdd={(t) => set({ talents: [...talents, t] })} /></div>}
       </div>
+
+      {d.features.length > 0 && (
+        <div>
+          <h3 className="yellow">Características de classe</h3>
+          {d.features.map((x) => (
+            <div key={x.cls.id} style={{ marginBottom: 8 }}>
+              <div className="kicker">{x.cls.name}</div>
+              <ul className="small muted" style={{ margin: '4px 0 0 18px', padding: 0 }}>{x.list.map((f) => <li key={f}>{f}</li>)}</ul>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -705,6 +758,8 @@ function DetailsTab({ d, data, set, setDeep, editable }) {
           {d.sp.traits.map(([n, t]) => <div key={n} className="small" style={{ marginBottom: 4 }}><b>{n}:</b> <span className="muted">{t}</span></div>)}
         </div>
       )}
+      {editable && <ClassEditor d={d} data={data} set={set} />}
+
       <div>
         <h3 className="yellow">Linguagens <span className="tiny muted">({langs.length}/{d.languageSlots})</span></h3>
         <div className="row" style={{ gap: 6 }}>
@@ -763,6 +818,44 @@ function DetailsTab({ d, data, set, setDeep, editable }) {
         {editable ? <textarea value={data.notes || ''} onChange={(e) => set({ notes: e.target.value })} style={{ minHeight: 140 }} />
           : <p className="small" style={{ textTransform: 'none', letterSpacing: 0, color: 'var(--text)', fontFamily: 'var(--font-body)', whiteSpace: 'pre-wrap' }}>{data.notes || '—'}</p>}
       </label>
+    </div>
+  );
+}
+
+// Ajuste manual dos níveis por classe (para corrigir fichas ou importar personagens já evoluídos)
+function ClassEditor({ d, data, set }) {
+  const [add, setAdd] = useState('');
+  const levels = getClassLevels(data);
+  const update = (next) => {
+    const clean = Object.fromEntries(Object.entries(next).filter(([, v]) => v > 0));
+    const total = Object.values(clean).reduce((a, b) => a + b, 0) || 1;
+    set({ classLevels: clean, level: total });
+  };
+  return (
+    <div>
+      <h3 className="yellow">Classes e níveis</h3>
+      <div className="tiny muted" style={{ marginBottom: 8 }}>Para subir de nível normalmente, use o botão "Subir de nível". Aqui é para corrigir. Nível total: {d.level}.</div>
+      <div className="list">
+        {Object.entries(levels).map(([id, lv]) => {
+          const c = anyClassById(id);
+          return (
+            <div key={id} className="list-row">
+              <div className="name">{c?.name ?? id} {id === data.classId && <span className="tag yellow">classe inicial</span>} {c?.prestige && <span className="tag">prestígio</span>}</div>
+              <div className="row">
+                <input type="number" min="0" max={c?.maxLevel ?? 20} value={lv} style={{ width: 70 }} onChange={(e) => update({ ...levels, [id]: Math.max(0, Number(e.target.value) || 0) })} />
+                {id !== data.classId && <button className="btn sm ghost red" onClick={() => update({ ...levels, [id]: 0 })}>Remover</button>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="row" style={{ marginTop: 8, flexWrap: 'nowrap' }}>
+        <select value={add} onChange={(e) => setAdd(e.target.value)} style={{ flex: 1 }}>
+          <option value="">Adicionar classe...</option>
+          {ALL_CLASSES.filter((c) => !levels[c.id]).map((c) => <option key={c.id} value={c.id}>{c.name}{c.prestige ? ' (prestígio)' : ''}</option>)}
+        </select>
+        <button className="btn sm" disabled={!add} onClick={() => { update({ ...levels, [add]: 1 }); setAdd(''); }}>Adicionar</button>
+      </div>
     </div>
   );
 }
