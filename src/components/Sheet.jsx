@@ -139,7 +139,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             {editable ? <input value={data.name} placeholder="Nome do personagem" onChange={(e) => set({ name: e.target.value })} /> : data.name || 'Sem nome'}
           </h1>
           <div className="sheet-sub">
-            {d.sp?.name ?? 'Espécie?'} · {d.classLabel}{d.classes.length > 1 ? ` (nível ${d.level})` : ''}
+            {d.spLabel ?? 'Espécie?'} · {d.classLabel}{d.classes.length > 1 ? ` (nível ${d.level})` : ''}
             {data.player && <> · jogador(a) {data.player}</>}
           </div>
           <div className="row" style={{ marginTop: 6, gap: 6 }}>
@@ -197,7 +197,8 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
         {/* ---------------- Coluna esquerda ---------------- */}
         <div className="stack" style={{ gap: 16 }}>
           <Panel title="Vitalidade" aside={<span className="tiny muted">Limiar {d.threshold}</span>}>
-            <div className={`bar ${hpClass}`}><i style={{ width: `${hpPct}%` }} /><span>{d.hpCurrent} / {d.hpMax} PV</span></div>
+            <div className={`bar ${hpClass}`}><i style={{ width: `${hpPct}%` }} /><span>{d.droid && d.hpCurrent <= 0 ? 'DESATIVADO' : `${d.hpCurrent} / ${d.hpMax} PV`}</span></div>
+            {d.droid && <div className="tiny muted" style={{ marginTop: 4 }}>Dróide: recupera PV só com conserto (Mecânica). Se o golpe que zerou os PV passou do limiar, está destruído.</div>}
             {editable && (
               <div className="row" style={{ marginTop: 10, flexWrap: 'nowrap' }}>
                 <input type="number" min="0" placeholder="Qtd" value={hpDelta} onChange={(e) => setHpDelta(e.target.value)} style={{ flex: 1, width: 'auto' }}
@@ -253,7 +254,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
 
           <Panel title="Habilidades">
             <div className="abilities" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-              {ABILITIES.map((a) => (
+              {d.abilities.map((a) => (
                 <div key={a.id} className="ability clickable" onClick={() => roll(d20Formula(d.mods[a.id] + d.condition.penalty), `Teste de ${a.name}`)}>
                   <div className="abbr">{a.short}</div>
                   <div className="score">{d.scores[a.id]}</div>
@@ -446,6 +447,7 @@ function ForceTab({ d, data, set, roll, editable }) {
   const [pick, setPick] = useState('');
   const useForce = d.skills.find((s) => s.name === 'Usar a Força');
   if (!d.forceSensitive) {
+    if (d.droid) return <div className="empty">Dróides não têm ligação com a Força.<br />Mas um bom processador heurístico às vezes parece mágica.</div>;
     return <div className="empty">Este personagem não possui o talento <b>Sensitividade da Força</b>.<br />Nem todo mundo ouve o chamado... ainda.</div>;
   }
   const powers = data.forcePowers || [];
@@ -810,7 +812,7 @@ function DetailsTab({ d, data, set, setDeep, editable }) {
           <h3 className="yellow">Valores de habilidade</h3>
           <div className="tiny muted" style={{ marginBottom: 8 }}>Base (antes da espécie) e aumentos de nível (4º, 8º, 12º, 16º e 20º).</div>
           <div className="abilities">
-            {ABILITIES.map((a) => (
+            {d.abilities.map((a) => (
               <div key={a.id} className="ability">
                 <div className="abbr">{a.short}</div>
                 <input type="number" value={data.base?.[a.id] ?? 10} style={{ width: '100%', textAlign: 'center' }}

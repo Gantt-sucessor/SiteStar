@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ABILITIES, SPECIES, CLASSES, ERAS, POINT_BUY_COST, POINT_BUY_TOTAL, STANDARD_ARRAY,
+  DROID_CATEGORIES, DROID_SIZES, DROID_POINT_BUY_TOTAL, DROID_STANDARD_ARRAY,
   WEAPONS, ARMORS, GEAR, WEAPON_GROUPS, FORCE_POWERS, LANGUAGES,
 } from '../data/rules';
 import { derive, newCharacter } from '../lib/character';
@@ -113,8 +114,8 @@ export default function CharacterWizard() {
       <div className="wizard-layout">
         <div>
           {step === 0 && <StepConcept data={data} set={set} />}
-          {step === 1 && <StepSpecies data={data} set={set} />}
-          {step === 2 && <StepClass data={data} set={set} />}
+          {step === 1 && <StepSpecies data={data} set={set} d={d} />}
+          {step === 2 && <StepClass data={data} set={set} d={d} />}
           {step === 3 && <StepAbilities data={data} set={set} d={d} />}
           {step === 4 && <StepSkills data={data} set={set} d={d} />}
           {step === 5 && <StepFeats data={data} set={set} d={d} />}
@@ -141,10 +142,10 @@ function Preview({ data, d }) {
   return (
     <Panel title="Prévia" className="yellow" aside={<span className="tiny dim mono">HOLO-ID</span>}>
       <div style={{ fontFamily: 'var(--font-head)', color: 'var(--sw-yellow)', fontSize: '1.1rem' }}>{data.name || 'Sem nome'}</div>
-      <div className="small muted">{d.sp?.name ?? '—'} · {d.cls?.name ?? '—'} 1</div>
+      <div className="small muted">{d.spLabel ?? '—'} · {d.cls?.name ?? '—'} 1</div>
       <div className="hr" />
       <div className="abilities" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-        {ABILITIES.map((a) => (
+        {d.abilities.map((a) => (
           <div key={a.id} className="ability" style={{ padding: '6px 2px' }}>
             <div className="abbr">{a.short}</div>
             <div className="score" style={{ fontSize: '1.15rem' }}>{d.scores[a.id]}</div>
@@ -194,22 +195,48 @@ function StepConcept({ data, set }) {
   );
 }
 
-function StepSpecies({ data, set }) {
+function StepSpecies({ data, set, d }) {
   const sel = SPECIES.find((s) => s.id === data.species);
   return (
     <Panel title="Escolha sua espécie">
       <div className="pick-grid">
         {SPECIES.map((s) => (
-          <button key={s.id} className={`pick ${data.species === s.id ? 'selected' : ''}`} onClick={() => set({ species: s.id, trainedSkills: [], languages: [] })}>
+          <button key={s.id} className={`pick ${data.species === s.id ? 'selected' : ''}`} onClick={() => set({ species: s.id, trainedSkills: [], languages: [], ...(s.droid ? { feats: (data.feats || []).filter((f) => !/Força/.test(f)), forcePowers: [], ...(data.classId === 'jedi' ? { classId: '' } : {}) } : {}) })}>
             <h3>{s.name}</h3>
             <div className="desc">{s.desc}</div>
             <div className="mods">{Object.keys(s.mods).length ? modTags(s.mods) : <span className="tag">sem ajustes</span>}{s.size !== 'Médio' && <span className="tag yellow">{s.size}</span>}</div>
           </button>
         ))}
       </div>
+      {sel?.droid && (
+        <div className="info-box" style={{ marginTop: 16 }}>
+          <b className="yellow">Monte seu dróide</b>
+          <div className="kicker" style={{ margin: '10px 0 6px' }}>Categoria</div>
+          <div className="pick-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
+            {DROID_CATEGORIES.map((c) => (
+              <button key={c.id} className={`pick ${String(data.droidCategory || '2') === c.id ? 'selected' : ''}`} onClick={() => set({ droidCategory: c.id })}>
+                <h3>{c.name}</h3>
+                <div className="desc">{c.roles}<br /><span className="dim">ex.: {c.example}</span></div>
+                <div className="mods">{modTags(c.mods)}</div>
+              </button>
+            ))}
+          </div>
+          <div className="kicker" style={{ margin: '12px 0 6px' }}>Tamanho</div>
+          <div className="pick-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+            {DROID_SIZES.map((z) => (
+              <button key={z.id} className={`pick ${(data.droidSize || 'medio') === z.id ? 'selected' : ''}`} onClick={() => set({ droidSize: z.id })}>
+                <h3>{z.name}</h3>
+                <div className="desc">Locomoção: {z.locomotion} · velocidade {z.speed}{z.ref ? ` · +${z.ref} Reflexo, +${z.stealth} Furtividade` : ''}</div>
+                {Object.keys(z.mods).length > 0 && <div className="mods">{modTags(z.mods)}</div>}
+              </button>
+            ))}
+          </div>
+          {d && <div className="small" style={{ marginTop: 10 }}>Resultado: <b>{d.spLabel}</b> {modTags(d.spMods)}</div>}
+        </div>
+      )}
       {sel && (
         <div className="info-box" style={{ marginTop: 16 }}>
-          <b className="yellow">{sel.name}</b> · Velocidade {sel.speed} quadrados · Linguagens: {sel.languages.join(', ')}
+          <b className="yellow">{sel.name}</b> · Velocidade {sel.droid ? d?.speed : sel.speed} quadrados · Linguagens: {sel.languages.join(', ')}
           <div style={{ marginTop: 6 }}>{sel.traits.map(([n, t]) => <div key={n} className="small"><b>{n}:</b> <span className="muted">{t}</span></div>)}</div>
         </div>
       )}
@@ -217,14 +244,16 @@ function StepSpecies({ data, set }) {
   );
 }
 
-function StepClass({ data, set }) {
+function StepClass({ data, set, d }) {
   const sel = CLASSES.find((c) => c.id === data.classId);
+  const isDroid = d?.droid;
   return (
     <Panel title="Escolha sua classe heróica">
       <div className="pick-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
         {CLASSES.map((c) => (
-          <button key={c.id} style={{ '--pc': c.color }} className={`pick ${data.classId === c.id ? 'selected' : ''}`}
-            onClick={() => { set({ classId: c.id, trainedSkills: [], talents: [], forcePowers: [] }); sfx.saber(); }}>
+          <button key={c.id} style={{ '--pc': c.color }} className={`pick ${data.classId === c.id ? 'selected' : ''} ${isDroid && c.id === 'jedi' ? 'disabled' : ''}`}
+            title={isDroid && c.id === 'jedi' ? 'Dróides não podem ser Jedi' : ''}
+            onClick={() => { if (isDroid && c.id === 'jedi') return; set({ classId: c.id, trainedSkills: [], talents: [], forcePowers: [] }); sfx.saber(); }}>
             <div style={{ height: 3, width: '60%', background: c.color, boxShadow: `0 0 10px ${c.color}`, borderRadius: 3, marginBottom: 10 }} />
             <h3>{c.name}</h3>
             <div className="desc">{c.desc}</div>
@@ -251,9 +280,11 @@ function StepClass({ data, set }) {
 
 function StepAbilities({ data, set, d }) {
   const method = data.abilityMethod;
-  const spent = ABILITIES.reduce((s, a) => s + (POINT_BUY_COST[data.base[a.id]] ?? 0), 0);
+  const isDroid = d.droid;
+  const TOTAL = isDroid ? DROID_POINT_BUY_TOTAL : POINT_BUY_TOTAL;
+  const spent = d.abilities.reduce((s, a) => s + (POINT_BUY_COST[data.base[a.id]] ?? 0), 0);
   const assign = data.assign || {};
-  const pool = method === 'array' ? STANDARD_ARRAY : data.rolledPool || [];
+  const pool = method === 'array' ? (isDroid ? DROID_STANDARD_ARRAY : STANDARD_ARRAY) : (data.rolledPool || []).slice(0, d.abilities.length);
 
   // Cada método guarda os próprios valores, para não perder nada ao alternar entre as abas
   const setMethod = (m) => {
@@ -275,11 +306,11 @@ function StepAbilities({ data, set, d }) {
   };
 
   const rollPool = () => {
-    const values = Array.from({ length: 6 }, () => rollDice('4d6kh3').total).sort((a, b) => b - a);
+    const values = Array.from({ length: d.abilities.length }, () => rollDice('4d6kh3').total).sort((a, b) => b - a);
     sfx.roll();
     set({ rolledPool: values, assign: {}, base: { vig: 8, des: 8, con: 8, int: 8, sab: 8, car: 8 } });
   };
-  const poolLow = pool.length === 6 && (pool.reduce((s, v) => s + Math.floor((v - 10) / 2), 0) <= 0 || Math.max(...pool) <= 13);
+  const poolLow = pool.length === d.abilities.length && !isDroid && (pool.reduce((s, v) => s + Math.floor((v - 10) / 2), 0) <= 0 || Math.max(...pool) <= 13);
 
   return (
     <Panel title="Valores de habilidade">
@@ -291,11 +322,11 @@ function StepAbilities({ data, set, d }) {
 
       {method === 'pointbuy' && (
         <div className="row between" style={{ marginBottom: 12 }}>
-          <span className="small muted">Todos começam em 8. Gaste {POINT_BUY_TOTAL} pontos (máximo 18 antes da espécie).</span>
-          <span className={`counter ${spent === POINT_BUY_TOTAL ? 'ok' : spent > POINT_BUY_TOTAL ? 'over' : ''}`}>{POINT_BUY_TOTAL - spent} pontos restantes</span>
+          <span className="small muted">Todos começam em 8. Gaste {TOTAL} pontos (máximo 18 antes da espécie).{isDroid ? ' Dróides têm 21 pontos e não têm Constituição.' : ''}</span>
+          <span className={`counter ${spent === TOTAL ? 'ok' : spent > TOTAL ? 'over' : ''}`}>{TOTAL - spent} pontos restantes</span>
         </div>
       )}
-      {method === 'array' && <p className="small muted">Distribua 15, 14, 13, 12, 10 e 8 entre as habilidades.</p>}
+      {method === 'array' && <p className="small muted">Distribua {pool.join(', ')} entre as habilidades.</p>}
       {method === 'roll' && (
         <div className="stack" style={{ marginBottom: 12 }}>
           <div className="row">
@@ -310,9 +341,9 @@ function StepAbilities({ data, set, d }) {
       {method === 'manual' && <p className="small muted">Digite os valores combinados com o mestre.</p>}
 
       <div className="abilities">
-        {ABILITIES.map((a) => {
+        {d.abilities.map((a) => {
           const v = data.base[a.id];
-          const spMod = d.sp?.mods?.[a.id] ?? 0;
+          const spMod = d.spMods?.[a.id] ?? 0;
           return (
             <div key={a.id} className="ability">
               <div className="abbr">{a.name}</div>
@@ -321,7 +352,7 @@ function StepAbilities({ data, set, d }) {
                   <div className="score">{v}</div>
                   <div className="adj">
                     <button className="btn sm icon" disabled={v <= 8} onClick={() => set({ base: { ...data.base, [a.id]: v - 1 } })}>−</button>
-                    <button className="btn sm icon" disabled={v >= 18 || POINT_BUY_COST[v + 1] - POINT_BUY_COST[v] > POINT_BUY_TOTAL - spent} onClick={() => set({ base: { ...data.base, [a.id]: v + 1 } })}>+</button>
+                    <button className="btn sm icon" disabled={v >= 18 || POINT_BUY_COST[v + 1] - POINT_BUY_COST[v] > TOTAL - spent} onClick={() => set({ base: { ...data.base, [a.id]: v + 1 } })}>+</button>
                   </div>
                 </>
               )}

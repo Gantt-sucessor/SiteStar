@@ -1,6 +1,6 @@
 import {
   ABILITIES, SKILLS, WEAPON_GROUPS, CONDITION_TRACK, ARMOR_PENALTY, FEAT_LEVELS,
-  classById, speciesById, armorByName, featByName, FORCE_TREES,
+  classById, speciesById, armorByName, featByName, FORCE_TREES, DROID_CATEGORIES, DROID_SIZES,
 } from '../data/rules.js';
 import { anyClassById, treesOfClass, classFeatures, ALL_TREES } from '../data/prestige.js';
 
@@ -9,7 +9,7 @@ export const abilityMod = (score) => Math.floor((score - 10) / 2);
 export function newCharacter() {
   return {
     name: '', player: '', concept: '', era: 'rebeliao',
-    species: '', classId: '', level: 1, xp: 0,
+    species: '', classId: '', level: 1, xp: 0, droidCategory: '2', droidSize: 'medio',
     abilityMethod: 'pointbuy',
     base: { vig: 8, des: 8, con: 8, int: 8, sab: 8, car: 8 },
     rolledPool: [],
@@ -50,10 +50,20 @@ export function derive(c) {
   const levelOf = (id) => classLevels[id] || 0;
   const classLabel = classes.length ? classes.map((x) => `${x.cls.name} ${x.levels}`).join(' / ') : (cls ? `${cls.name} ${level}` : '—');
 
+  // Dróides: categoria e tamanho fazem o papel da espécie, e não existe Constituição
+  const droid = Boolean(sp?.droid);
+  const droidCat = droid ? DROID_CATEGORIES.find((x) => x.id === String(c.droidCategory || '2')) ?? DROID_CATEGORIES[1] : null;
+  const droidSize = droid ? DROID_SIZES.find((x) => x.id === (c.droidSize || 'medio')) ?? DROID_SIZES[0] : null;
+  const spMods = droid ? { ...droidCat.mods } : { ...(sp?.mods ?? {}) };
+  if (droid) for (const [k, v] of Object.entries(droidSize.mods)) spMods[k] = (spMods[k] ?? 0) + v;
+  const abilities = droid ? ABILITIES.filter((a) => a.id !== 'con') : ABILITIES;
+  const spLabel = droid ? `Dróide ${droidSize.name} (${droidCat.name})` : sp?.name;
+
   const scores = {};
   const mods = {};
   for (const a of ABILITIES) {
-    scores[a.id] = (c.base?.[a.id] ?? 10) + (sp?.mods?.[a.id] ?? 0) + (c.increases?.[a.id] ?? 0);
+    if (droid && a.id === 'con') { scores.con = null; mods.con = 0; continue; }
+    scores[a.id] = Math.max(1, (c.base?.[a.id] ?? 10) + (spMods[a.id] ?? 0) + (c.increases?.[a.id] ?? 0));
     mods[a.id] = abilityMod(scores[a.id]);
   }
 
@@ -64,7 +74,7 @@ export function derive(c) {
   if (sp?.conditionalFeat && (c.trainedSkills || []).includes(sp.conditionalFeat.skill)) autoFeats.push(sp.conditionalFeat.feat);
   const feats = [...autoFeats, ...(c.feats || [])];
   const has = (name) => hasPrefix(feats, name);
-  const forceSensitive = has('Sensitividade da Força');
+  const forceSensitive = !droid && has('Sensitividade da Força');
   const talents = c.talents || [];
   const hasTalent = (name) => talents.includes(name);
 
@@ -81,7 +91,7 @@ export function derive(c) {
   const maxDex = armor ? armor.maxDex + (armorProficient && hasTalent('Domínio de Armadura') ? 1 : 0) : Infinity;
   const dexToRef = Math.min(mods.des, maxDex);
 
-  const spDef = sp?.defense ?? {};
+  const spDef = droid ? { ref: droidSize.ref } : (sp?.defense ?? {});
   // Bônus de classe nas defesas não acumulam: vale o maior entre as classes
   const clsDef = { ref: 0, fort: 0, von: 0 };
   for (const x of classes) for (const k of ['ref', 'fort', 'von']) clsDef[k] = Math.max(clsDef[k], x.cls.defense?.[k] ?? 0);
@@ -98,7 +108,7 @@ export function derive(c) {
 
   const defenses = {
     ref: 10 + refBase + dexToRef + clsDef.ref + (spDef.ref ?? 0) + improved + martial + niman + (c.misc?.ref ?? 0) + cp,
-    fort: 10 + level + mods.con + clsDef.fort + armorFort + (spDef.fort ?? 0) + improved + (c.misc?.fort ?? 0) + cp,
+    fort: 10 + level + (droid ? mods.vig : mods.con) + clsDef.fort + armorFort + (spDef.fort ?? 0) + improved + (c.misc?.fort ?? 0) + cp,
     von: 10 + level + mods.sab + clsDef.von + (spDef.von ?? 0) + improved + niman + (c.misc?.von ?? 0) + cp,
   };
   const improvedThreshold = feats.filter((f) => f === 'Limiar de Dano Aprimorado').length;
@@ -117,7 +127,7 @@ export function derive(c) {
   const forceDie = has('Forte na Força') ? 'd8' : 'd6';
   const fpDice = level >= 15 ? 3 : level >= 8 ? 2 : 1;
 
-  let speed = sp?.speed ?? 6;
+  let speed = droid ? droidSize.speed : (sp?.speed ?? 6);
   if (armor && armor.category !== 'leve' && !(armorProficient && hasTalent('Juggernauta'))) speed = speed >= 6 ? 4 : 3;
   if (hasTalent('Passo Largo') && (!armor || armor.category === 'leve')) speed += 2;
 
@@ -129,7 +139,7 @@ export function derive(c) {
     const isTrained = trained.has(s.name);
     const usable = !s.trainedOnly || isTrained;
     const mod = halfLevel + mods[s.ability] + (isTrained ? 5 : 0) + (focus.has(s.name) ? 5 : 0)
-      + (s.armor ? armorSkillPenalty : 0) + (sp?.skillBonus?.[s.name] ?? 0) + cp;
+      + (s.armor ? armorSkillPenalty : 0) + (sp?.skillBonus?.[s.name] ?? 0) + (droid && s.name === 'Furtividade' ? droidSize.stealth : 0) + cp;
     const viaFeat = feats.includes(`Treinamento em Perícia (${s.name})`);
     return { ...s, trained: isTrained, viaFeat, focus: focus.has(s.name), usable, mod, classSkill: classSkills.has(s.name) || (s.force && forceSensitive) };
   });
@@ -180,6 +190,7 @@ export function derive(c) {
 
   return {
     cls, sp, level, halfLevel, scores, mods, feats, autoFeats, has, forceSensitive, bab,
+    droid, droidCat, droidSize, abilities, spLabel, spMods,
     classes, classLevels, classLabel, levelOf, classSkills, heroic, extraClassFeats,
     techniqueSlots, secretSlots, damageReduction, features, talentTrees,
     condition, armor, armorProficient, defenses, threshold, hpMax, hpCurrent, hpComputed,

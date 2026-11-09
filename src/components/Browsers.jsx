@@ -17,7 +17,8 @@ export function featMissing(feat, d) {
     if ((m = /^(Vig|Vigor|Des|Con|Int|Sab|Car) (\d+)$/.exec(raw))) { if (d.scores[SCORE[m[1]]] < Number(m[2])) miss.push(raw); continue; }
     if ((m = /^BBA \+?(\d+)$/.exec(raw))) { if (d.bab < Number(m[1])) miss.push(raw); continue; }
     if ((m = /^[Tt]reinado em (.+)$/.exec(raw))) { if (!d.skills.find((s) => s.name === m[1] || s.name.startsWith(m[1]))?.trained) miss.push(raw); continue; }
-    if (/proficien|Perícia treinada|Não dróide|Médio\+/i.test(raw)) continue;
+    if (/^Não dróide$/i.test(raw)) { if (d.droid) miss.push(raw); continue; }
+    if (/proficien|Perícia treinada|Médio\+/i.test(raw)) continue;
     if (/^Traço/.test(raw)) { if (d.sp?.id !== 'wookiee') miss.push(raw); continue; }
     if (/^Prof\. armas pesadas$/.test(raw)) { if (!d.has('Proficiência em Arma (armas pesadas)')) miss.push(raw); continue; }
     if (!d.has(raw)) miss.push(raw);

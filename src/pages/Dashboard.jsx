@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { createCampaign, joinCampaign, listMyCampaigns, listMyCharacters } from '../lib/data';
-import { speciesById, ERAS } from '../data/rules';
+import { ERAS } from '../data/rules';
 import { derive } from '../lib/character';
 import { hyperspace } from '../components/Starfield';
 import { supabase } from '../lib/supabase';
@@ -107,7 +107,7 @@ export default function Dashboard() {
             return (
               <div key={c.id} className="panel char-card" onClick={() => navigate(`/personagem/${c.id}`)}>
                 <div className="cname">{c.name}</div>
-                <div className="small muted">{speciesById(c.data.species)?.name ?? '?'} · {d.classLabel}</div>
+                <div className="small muted">{d.spLabel ?? '?'} · {d.classLabel}</div>
                 <div className={`bar ${d.hpCurrent / d.hpMax <= 0.25 ? 'low' : d.hpCurrent / d.hpMax <= 0.5 ? 'mid' : ''}`} style={{ marginTop: 10, height: 16 }}>
                   <i style={{ width: `${Math.max(0, Math.min(100, (d.hpCurrent / (d.hpMax || 1)) * 100))}%` }} /><span style={{ lineHeight: '14px', fontSize: '0.72rem' }}>{d.hpCurrent}/{d.hpMax}</span>
                 </div>

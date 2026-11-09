@@ -711,3 +711,35 @@ export const featByName = (name) => FEATS.find((f) => name === f.name || name.st
 export const weaponByName = (name) => WEAPONS.find((w) => w.name === name);
 export const armorByName = (name) => ARMORS.find((a) => a.name === name);
 export const powerByName = (name) => FORCE_POWERS.find((p) => p.name === name);
+
+// ---------- Heróis dróides (Cap. 11) ----------
+export const DROID_CATEGORIES = [
+  { id: '1', name: '1ª categoria', mods: { int: 2, sab: 2, vig: -2 }, roles: 'médico, científico', example: 'Dróide médico 2-1B' },
+  { id: '2', name: '2ª categoria', mods: { int: 2, car: -2 }, roles: 'astromecânico, técnico', example: 'R2-D2' },
+  { id: '3', name: '3ª categoria', mods: { sab: 2, car: 2, vig: -2 }, roles: 'protocolo, serviço', example: 'C-3PO' },
+  { id: '4', name: '4ª categoria', mods: { des: 2, int: -2, car: -2 }, roles: 'combate, segurança', example: 'K-2SO, IG-88' },
+  { id: '5', name: '5ª categoria', mods: { vig: 4, int: -4, car: -4 }, roles: 'operário, utilidade', example: 'Dróide operário ASP' },
+];
+export const DROID_SIZES = [
+  { id: 'medio', name: 'Médio', mods: {}, speed: 6, ref: 0, stealth: 0, locomotion: 'andarilho (pernas)' },
+  { id: 'pequeno', name: 'Pequeno', mods: { vig: -2, des: 2 }, speed: 4, ref: 1, stealth: 5, locomotion: 'esteiras' },
+];
+export const DROID_POINT_BUY_TOTAL = 21;
+export const DROID_STANDARD_ARRAY = [15, 14, 13, 12, 10];
+
+SPECIES.push({
+  id: 'droide', name: 'Dróide', droid: true, mods: {}, speed: 6, size: 'Médio',
+  languages: ['Binário', 'Básico'],
+  desc: 'Um dróide "dono de si mesmo" com processador heurístico. Sem Constituição e sem ligação com a Força.',
+  traits: [
+    ['Não Vivente', 'Sem Constituição: usa o Vigor na Fortitude e não ganha PV por Con. Imune a veneno, doença, radiação, vácuo, atordoamento e efeitos de ação mental.'],
+    ['Sem Força', 'Não pode ser Jedi, pegar Sensitividade da Força nem aprender poderes.'],
+    ['Vulnerável a Íon', 'Armas de íon têm nele o efeito que o atordoamento tem em seres vivos.'],
+    ['Reparo', 'Só recupera PV com a perícia Mecânica (-5 para consertar a si mesmo).'],
+    ['Desativado / Destruído', 'Com 0 PV fica desativado; se o golpe também passou do limiar, é destruído.'],
+    ['Manutenção', 'Precisa recarregar 1 hora a cada 100 horas, ou desce na condição.'],
+    ['Inibidores de Comportamento', 'Fora da 4ª categoria, não pode ferir seres vivos de propósito (o processador heurístico permite interpretar criativamente).'],
+    ['Memória', 'Perícias, talentos e aptidões podem ser reprogramados com Usar Computador.'],
+    ['Sistemas iniciais', 'Processador heurístico, 2 braços e até 1.000 créditos em acessórios de dróide.'],
+  ],
+});
