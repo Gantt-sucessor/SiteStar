@@ -493,6 +493,9 @@ function ForceTab({ d, data, set, roll, editable }) {
   );
 }
 
+// Talentos que podem ser escolhidos mais de uma vez
+const REPEATABLE_FEATS = ['Treinamento da Força', 'Bênção da Força', 'Limiar de Dano Aprimorado', 'Fúria Extra'];
+
 export function FeatPicker({ d, data, onAdd, filter }) {
   const [pick, setPick] = useState('');
   const [choice, setChoice] = useState('');
@@ -507,18 +510,21 @@ export function FeatPicker({ d, data, onAdd, filter }) {
       <div className="row" style={{ flexWrap: 'nowrap' }}>
         <select value={pick} onChange={(e) => { setPick(e.target.value); setChoice(''); }} style={{ flex: 1 }}>
           <option value="">Escolher talento...</option>
-          {options.map((f) => <option key={f.name} value={f.name}>{f.name}{f.prereq !== '—' ? ` (requer: ${f.prereq})` : ''}</option>)}
+          {options.map((f) => {
+            const owned = !f.choice && !REPEATABLE_FEATS.includes(f.name) && d.feats.includes(f.name);
+            return <option key={f.name} value={f.name} disabled={owned}>{f.name}{owned ? ' (você já tem)' : f.prereq !== '—' ? ` (requer: ${f.prereq})` : ''}</option>;
+          })}
         </select>
         {feat?.choice === 'skill' && (
           <select value={choice} onChange={(e) => setChoice(e.target.value)}>
             <option value="">Perícia...</option>
-            {skillChoices.map((s) => <option key={s}>{s}</option>)}
+            {skillChoices.filter((s) => !d.feats.includes(`${pick} (${s})`)).map((s) => <option key={s}>{s}</option>)}
           </select>
         )}
         {feat?.choice === 'weaponGroup' && (
           <select value={choice} onChange={(e) => setChoice(e.target.value)}>
             <option value="">Grupo...</option>
-            {Object.values(WEAPON_GROUPS).filter((g) => g !== 'armas exóticas').map((g) => <option key={g}>{g}</option>)}
+            {Object.values(WEAPON_GROUPS).filter((g) => g !== 'armas exóticas' && !d.feats.includes(`${pick} (${g})`)).map((g) => <option key={g}>{g}</option>)}
           </select>
         )}
         <button className="btn" disabled={!finalName} onClick={() => { onAdd(finalName); setPick(''); setChoice(''); }}>Adicionar</button>
