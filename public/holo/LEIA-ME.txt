@@ -1,0 +1,47 @@
+HOLOGRAMAS DE EXEMPLO
+=====================
+
+Coloque aqui as fotos de exemplo de cada espécie e classe. O site aplica o efeito de holograma sozinho:
+não precisa editar a imagem. Formatos aceitos: .jpg, .png ou .webp. Use exatamente o nome do arquivo.
+Dica: fotos de busto ou corpo inteiro, de preferência com fundo escuro.
+
+As imagens ficam públicas no site e no repositório do GitHub.
+
+ESPÉCIES  (pasta holo/especies/)
+  humano.jpg                Padmé Amidala
+  bothan.jpg                Borsk Fey'lya
+  cereano.jpg               Ki-Adi-Mundi
+  duros.jpg                 Cad Bane
+  ewok.jpg                  Wicket
+  gamorreano.jpg            Guarda Gamorreano
+  gungan.jpg                Jar Jar Binks
+  ithoriano.jpg             Momaw Nadon
+  keldor.jpg                Plo Koon
+  moncal.jpg                Almirante Ackbar
+  quarren.jpg               Tessek
+  rodiano.jpg               Greedo
+  sullustano.jpg            Nien Nunb
+  trandoshano.jpg           Bossk
+  twilek.jpg                Aayla Secura
+  wookiee.jpg               Chewbacca
+  zabrak.jpg                Darth Maul
+  droide.jpg                R2-D2
+
+CLASSES  (pasta holo/classes/)
+  jedi.jpg                  Mestre Yoda
+  nobre.jpg                 Princesa Leia
+  vigarista.jpg             Han Solo
+  batedor.jpg               Chewbacca
+  soldado.jpg               Capitão Rex
+  adepto-forca.jpg          Asajj Ventress
+  aprendiz-sith.jpg         Darth Maul
+  cacador-recompensa.jpg    Boba Fett
+  cavaleiro-jedi.jpg        Obi-Wan Kenobi
+  discipulo-forca.jpg       Kadann
+  lorde-sith.jpg            Darth Vader
+  mestre-jedi.jpg           Mace Windu
+  oficial.jpg               Almirante Ackbar
+  piloto-as.jpg             Wedge Antilles
+  pistoleiro.jpg            Jango Fett
+  senhor-crime.jpg          Jabba, o Hutt
+  soldado-elite.jpg         Soldado ARC

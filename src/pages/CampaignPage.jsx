@@ -15,6 +15,7 @@ import { sfx } from '../lib/sfx';
 import { useNpcs, encounterDifficulty } from '../lib/npcs';
 import { NpcCard, NpcSheet, BestiaryPicker, NpcBuilder, npcHp } from '../components/Npcs';
 import { sendRoll } from '../lib/rolls';
+import Holo from '../components/Holo';
 import { d20Formula } from '../lib/dice';
 
 function useCampaign(id) {
@@ -440,7 +441,10 @@ function CharCard({ row, owner, onOpen }) {
     <div className="panel char-card" onClick={onOpen} style={{ padding: 14 }}>
       <div className="row between" style={{ flexWrap: 'nowrap' }}>
         <div style={{ minWidth: 0 }}>
-          <div className="cname">{row.name}</div>
+          <div className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start', gap: 8 }}>
+            {row.data.portrait && <Holo src={row.data.portrait} size={50} />}
+            <div className="cname">{row.name}</div>
+          </div>
           <div className="tiny muted">{d.spLabel} · {d.classLabel} · {owner?.display_name}</div>
         </div>
         {owner?.avatar_url ? <img className="avatar" src={owner.avatar_url} alt="" /> : null}

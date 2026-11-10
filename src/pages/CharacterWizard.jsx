@@ -14,6 +14,8 @@ import { Panel, FeatPicker, TalentPicker, meetsPrereq } from '../components/Shee
 import { sfx } from '../lib/sfx';
 import { FeatBrowser } from '../components/Browsers';
 import DroidShop from '../components/DroidShop';
+import Holo, { PortraitHolo } from '../components/Holo';
+import { SPECIES_EXAMPLES, CLASS_EXAMPLES, speciesHoloSrcs, classHoloSrcs } from '../data/holoExamples';
 import { hyperspace } from '../components/Starfield';
 
 const STEPS = ['Conceito', 'Espécie', 'Classe', 'Habilidades', 'Perícias', 'Talentos', 'Aptidão', 'A Força', 'Equipamento', 'Revisão'];
@@ -230,6 +232,13 @@ function Preview({ data, d }) {
 function StepConcept({ data, set }) {
   return (
     <Panel title="Quem é você nesta galáxia?">
+      <div className="row" style={{ alignItems: 'flex-start', gap: 20, marginBottom: 12 }}>
+        <PortraitHolo data={data} set={set} editable size={130} />
+        <div className="small muted" style={{ flex: 1, minWidth: 200 }}>
+          <b className="yellow">Foto do personagem</b><br />
+          Envie uma imagem do seu personagem. Ela aparece como holograma na ficha e na mesa do mestre. Fotos de rosto ou de corpo inteiro com fundo escuro ficam melhores.
+        </div>
+      </div>
       <div className="grid grid-2">
         <label className="field">Nome do personagem<input value={data.name} onChange={(e) => set({ name: e.target.value })} placeholder="Ex.: Kira Voss" autoFocus /></label>
         <label className="field">Jogador(a)<input value={data.player} onChange={(e) => set({ player: e.target.value })} /></label>
@@ -290,9 +299,12 @@ function StepSpecies({ data, set, d }) {
         </div>
       )}
       {sel && (
-        <div className="info-box" style={{ marginTop: 16 }}>
-          <b className="yellow">{sel.name}</b> · Velocidade {sel.droid ? d?.speed : sel.speed} quadrados · Linguagens: {sel.languages.join(', ')}
-          <div style={{ marginTop: 6 }}>{sel.traits.map(([n, t]) => <div key={n} className="small"><b>{n}:</b> <span className="muted">{t}</span></div>)}</div>
+        <div className="info-box holo-row" style={{ marginTop: 16 }}>
+          <Holo srcs={speciesHoloSrcs(sel.id)} size={130} caption="Exemplo" label={SPECIES_EXAMPLES[sel.id]} />
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <b className="yellow">{sel.name}</b> · Velocidade {sel.droid ? d?.speed : sel.speed} quadrados · Linguagens: {sel.languages.join(', ')}
+            <div style={{ marginTop: 6 }}>{sel.traits.map(([n, t]) => <div key={n} className="small"><b>{n}:</b> <span className="muted">{t}</span></div>)}</div>
+          </div>
         </div>
       )}
     </Panel>
@@ -324,12 +336,15 @@ function StepClass({ data, set, d }) {
         ))}
       </div>
       {sel && (
-        <div className="info-box" style={{ marginTop: 16 }}>
+        <div className="info-box holo-row" style={{ marginTop: 16 }}>
+          <Holo srcs={classHoloSrcs(sel.id)} size={130} caption="Exemplo" label={CLASS_EXAMPLES[sel.id]} />
+          <div style={{ flex: 1, minWidth: 220 }}>
           <b className="yellow">{sel.name}</b> — habilidades-chave: {sel.keyAbilities}.
           <div className="small" style={{ marginTop: 6 }}><b>Talentos iniciais:</b> <span className="muted">{sel.startingFeats.join(', ')}</span></div>
           <div className="small"><b>Defesas:</b> <span className="muted">{Object.entries(sel.defense).map(([k, v]) => `+${v} ${k === 'ref' ? 'Reflexo' : k === 'fort' ? 'Fortitude' : 'Vontade'}`).join(', ')}</span></div>
           <div className="small"><b>Créditos iniciais:</b> <span className="muted">{sel.credits.dice} × {sel.credits.mult}</span></div>
           <div className="small"><b>Árvores de aptidão:</b> <span className="muted">{sel.trees.map((t) => t.name).join(', ')}</span></div>
+          </div>
         </div>
       )}
     </Panel>

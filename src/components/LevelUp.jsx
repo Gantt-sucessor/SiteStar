@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { CLASSES, FEAT_LEVELS, ABILITY_INCREASE_LEVELS } from '../data/rules';
 import { PRESTIGE_CLASSES, classFeatures } from '../data/prestige';
 import { prestigeMissing } from '../lib/character';
+import Holo from './Holo';
+import { CLASS_EXAMPLES, classHoloSrcs } from '../data/holoExamples';
 
 // Escolha da classe ao subir de nível: continuar uma classe, multiclassear ou entrar numa classe de prestígio.
 export default function LevelUp({ d, data, onConfirm, onClose }) {
@@ -73,7 +75,9 @@ export default function LevelUp({ d, data, onConfirm, onClose }) {
         {group('prestigio', 'Classes de prestígio')}
 
         {chosen && (
-          <div className="info-box" style={{ marginTop: 6 }}>
+          <div className="info-box holo-row" style={{ marginTop: 6 }}>
+            <Holo srcs={classHoloSrcs(chosen.cls.id)} size={110} caption="Exemplo" label={CLASS_EXAMPLES[chosen.cls.id]} />
+            <div style={{ flex: 1, minWidth: 220 }}>
             <b className="yellow">{chosen.cls.name} {chosen.current + 1}</b>
             {chosen.cls.examples && <span className="tiny muted"> · como {chosen.cls.examples}</span>}
             <ul style={{ margin: '8px 0 0 18px', padding: 0 }} className="small">
@@ -87,6 +91,7 @@ export default function LevelUp({ d, data, onConfirm, onClose }) {
             )}
             {chosen.cls.req?.special && <div className="tiny muted" style={{ marginTop: 6 }}>Requisito narrativo: {chosen.cls.req.special}</div>}
             {chosen.cls.note && <div className="tiny muted">{chosen.cls.note}</div>}
+            </div>
           </div>
         )}
         <div className="row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>

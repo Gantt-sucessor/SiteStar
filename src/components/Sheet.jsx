@@ -8,6 +8,7 @@ import { derive, getClassLevels } from '../lib/character';
 import { ALL_TREES, REPEATABLE_TALENTS, FORCE_TECHNIQUES, FORCE_SECRETS, ALL_CLASSES, anyClassById } from '../data/prestige';
 import LevelUp from './LevelUp';
 import DroidShop from './DroidShop';
+import { PortraitHolo } from './Holo';
 import { FeatBrowser, TalentBrowser } from './Browsers';
 import { fmtMod, d20Formula } from '../lib/dice';
 import { sendRoll } from '../lib/rolls';
@@ -136,7 +137,9 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
   return (
     <div>
       <div className="sheet-head">
-        <div>
+        <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', gap: 18 }}>
+        <PortraitHolo data={data} set={set} editable={editable} size={120} />
+        <div style={{ minWidth: 0, flex: 1 }}>
           <h1 className="sheet-name">
             {editable ? <input value={data.name} placeholder="Nome do personagem" onChange={(e) => set({ name: e.target.value })} /> : data.name || 'Sem nome'}
           </h1>
@@ -150,6 +153,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             {d.armor && <span className="tag">{d.armor.name}{!d.armorProficient && ' (não proficiente)'}</span>}
             <span className="tag yellow">{(data.credits || 0).toLocaleString('pt-BR')} créditos</span>
           </div>
+        </div>
         </div>
         {editable && (
           <div className="row">

@@ -5,6 +5,7 @@ import { createCampaign, joinCampaign, listMyCampaigns, listMyCharacters } from 
 import { ERAS } from '../data/rules';
 import { derive } from '../lib/character';
 import { hyperspace } from '../components/Starfield';
+import Holo from '../components/Holo';
 import { supabase } from '../lib/supabase';
 
 export default function Dashboard() {
@@ -106,7 +107,10 @@ export default function Dashboard() {
             const camp = [...camps.owned, ...camps.joined].find((x) => x.id === c.campaign_id);
             return (
               <div key={c.id} className="panel char-card" onClick={() => navigate(`/personagem/${c.id}`)}>
-                <div className="cname">{c.name}</div>
+                <div className="row" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+                  {c.data.portrait && <Holo src={c.data.portrait} size={54} />}
+                  <div className="cname" style={{ flex: 1 }}>{c.name}</div>
+                </div>
                 <div className="small muted">{d.spLabel ?? '?'} · {d.classLabel}</div>
                 <div className={`bar ${d.hpCurrent / d.hpMax <= 0.25 ? 'low' : d.hpCurrent / d.hpMax <= 0.5 ? 'mid' : ''}`} style={{ marginTop: 10, height: 16 }}>
                   <i style={{ width: `${Math.max(0, Math.min(100, (d.hpCurrent / (d.hpMax || 1)) * 100))}%` }} /><span style={{ lineHeight: '14px', fontSize: '0.72rem' }}>{d.hpCurrent}/{d.hpMax}</span>
