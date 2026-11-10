@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
@@ -19,6 +19,17 @@ import { SPECIES_EXAMPLES, CLASS_EXAMPLES, speciesHoloSrcs, classHoloSrcs } from
 import { hyperspace } from '../components/Starfield';
 
 const STEPS = ['Conceito', 'Espécie', 'Classe', 'Habilidades', 'Perícias', 'Talentos', 'Aptidão', 'A Força', 'Equipamento', 'Revisão'];
+
+// Ao escolher uma espécie/classe, rola a tela até o destaque com o holograma de exemplo
+function useSpotlight(value) {
+  const ref = useRef(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    if (value && ref.current) ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [value]);
+  return ref;
+}
 
 const modTags = (mods) => Object.entries(mods || {}).map(([k, v]) => (
   <span key={k} className={`tag ${v > 0 ? 'green' : 'red'}`}>{v > 0 ? '+' : ''}{v} {k.toUpperCase()}</span>
@@ -261,19 +272,20 @@ function StepConcept({ data, set }) {
 
 function StepSpecies({ data, set, d }) {
   const sel = SPECIES.find((s) => s.id === data.species);
+  const topRef = useSpotlight(data.species);
   return (
     <Panel title="Escolha sua espécie">
-      <div className="pick-grid">
-        {SPECIES.map((s) => (
-          <button key={s.id} className={`pick ${data.species === s.id ? 'selected' : ''}`} onClick={() => s.id !== data.species && set({ species: s.id, trainedSkills: [], languages: [], ...(s.droid ? { feats: (data.feats || []).filter((f) => !/Força/.test(f)), forcePowers: [], ...(data.classId === 'jedi' ? { classId: '' } : {}) } : {}) })}>
-            <h3>{s.name}</h3>
-            <div className="desc">{s.desc}</div>
-            <div className="mods">{Object.keys(s.mods).length ? modTags(s.mods) : <span className="tag">sem ajustes</span>}{s.size !== 'Médio' && <span className="tag yellow">{s.size}</span>}</div>
-          </button>
-        ))}
-      </div>
+      {sel && (
+        <div ref={topRef} className="info-box holo-row selected-spotlight" style={{ marginBottom: 16, scrollMarginTop: 90 }}>
+          <Holo srcs={speciesHoloSrcs(sel.id)} size={180} caption="Exemplo" label={SPECIES_EXAMPLES[sel.id]} />
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <b className="yellow">{sel.name}</b> · Velocidade {sel.droid ? d?.speed : sel.speed} quadrados · Linguagens: {sel.languages.join(', ')}
+            <div style={{ marginTop: 6 }}>{sel.traits.map(([n, t]) => <div key={n} className="small"><b>{n}:</b> <span className="muted">{t}</span></div>)}</div>
+          </div>
+        </div>
+      )}
       {sel?.droid && (
-        <div className="info-box" style={{ marginTop: 16 }}>
+        <div className="info-box" style={{ marginBottom: 16 }}>
           <b className="yellow">Monte seu dróide</b>
           <div className="kicker" style={{ margin: '10px 0 6px' }}>Categoria</div>
           <div className="pick-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
@@ -298,15 +310,15 @@ function StepSpecies({ data, set, d }) {
           {d && <div className="small" style={{ marginTop: 10 }}>Resultado: <b>{d.spLabel}</b> {modTags(d.spMods)}</div>}
         </div>
       )}
-      {sel && (
-        <div className="info-box holo-row" style={{ marginTop: 16 }}>
-          <Holo srcs={speciesHoloSrcs(sel.id)} size={130} caption="Exemplo" label={SPECIES_EXAMPLES[sel.id]} />
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <b className="yellow">{sel.name}</b> · Velocidade {sel.droid ? d?.speed : sel.speed} quadrados · Linguagens: {sel.languages.join(', ')}
-            <div style={{ marginTop: 6 }}>{sel.traits.map(([n, t]) => <div key={n} className="small"><b>{n}:</b> <span className="muted">{t}</span></div>)}</div>
-          </div>
-        </div>
-      )}
+      <div className="pick-grid">
+        {SPECIES.map((s) => (
+          <button key={s.id} className={`pick ${data.species === s.id ? 'selected' : ''}`} onClick={() => s.id !== data.species && set({ species: s.id, trainedSkills: [], languages: [], ...(s.droid ? { feats: (data.feats || []).filter((f) => !/Força/.test(f)), forcePowers: [], ...(data.classId === 'jedi' ? { classId: '' } : {}) } : {}) })}>
+            <h3>{s.name}</h3>
+            <div className="desc">{s.desc}</div>
+            <div className="mods">{Object.keys(s.mods).length ? modTags(s.mods) : <span className="tag">sem ajustes</span>}{s.size !== 'Médio' && <span className="tag yellow">{s.size}</span>}</div>
+          </button>
+        ))}
+      </div>
     </Panel>
   );
 }
@@ -314,10 +326,23 @@ function StepSpecies({ data, set, d }) {
 function StepClass({ data, set, d }) {
   const sel = CLASSES.find((c) => c.id === data.classId);
   const isDroid = d?.droid;
+  const topRef = useSpotlight(data.classId);
   const droidNote = isDroid ? <div className="info-box small" style={{ marginBottom: 12 }}>Seu personagem é um <b>dróide</b>, então a classe Jedi fica bloqueada. Para ser Jedi, volte ao passo <b>02 Espécie</b> e escolha uma espécie viva.</div> : null;
   return (
     <Panel title="Escolha sua classe heróica">
       {droidNote}
+      {sel && (
+        <div ref={topRef} className="info-box holo-row selected-spotlight" style={{ marginBottom: 16, scrollMarginTop: 90, '--pc': sel.color }}>
+          <Holo srcs={classHoloSrcs(sel.id)} size={180} caption="Exemplo" label={CLASS_EXAMPLES[sel.id]} />
+          <div style={{ flex: 1, minWidth: 220 }}>
+          <b className="yellow">{sel.name}</b> — habilidades-chave: {sel.keyAbilities}.
+          <div className="small" style={{ marginTop: 6 }}><b>Talentos iniciais:</b> <span className="muted">{sel.startingFeats.join(', ')}</span></div>
+          <div className="small"><b>Defesas:</b> <span className="muted">{Object.entries(sel.defense).map(([k, v]) => `+${v} ${k === 'ref' ? 'Reflexo' : k === 'fort' ? 'Fortitude' : 'Vontade'}`).join(', ')}</span></div>
+          <div className="small"><b>Créditos iniciais:</b> <span className="muted">{sel.credits.dice} × {sel.credits.mult}</span></div>
+          <div className="small"><b>Árvores de aptidão:</b> <span className="muted">{sel.trees.map((t) => t.name).join(', ')}</span></div>
+          </div>
+        </div>
+      )}
       <div className="pick-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
         {CLASSES.map((c) => (
           <button key={c.id} style={{ '--pc': c.color }} className={`pick ${data.classId === c.id ? 'selected' : ''} ${isDroid && c.id === 'jedi' ? 'disabled' : ''}`}
@@ -335,18 +360,6 @@ function StepClass({ data, set, d }) {
           </button>
         ))}
       </div>
-      {sel && (
-        <div className="info-box holo-row" style={{ marginTop: 16 }}>
-          <Holo srcs={classHoloSrcs(sel.id)} size={130} caption="Exemplo" label={CLASS_EXAMPLES[sel.id]} />
-          <div style={{ flex: 1, minWidth: 220 }}>
-          <b className="yellow">{sel.name}</b> — habilidades-chave: {sel.keyAbilities}.
-          <div className="small" style={{ marginTop: 6 }}><b>Talentos iniciais:</b> <span className="muted">{sel.startingFeats.join(', ')}</span></div>
-          <div className="small"><b>Defesas:</b> <span className="muted">{Object.entries(sel.defense).map(([k, v]) => `+${v} ${k === 'ref' ? 'Reflexo' : k === 'fort' ? 'Fortitude' : 'Vontade'}`).join(', ')}</span></div>
-          <div className="small"><b>Créditos iniciais:</b> <span className="muted">{sel.credits.dice} × {sel.credits.mult}</span></div>
-          <div className="small"><b>Árvores de aptidão:</b> <span className="muted">{sel.trees.map((t) => t.name).join(', ')}</span></div>
-          </div>
-        </div>
-      )}
     </Panel>
   );
 }

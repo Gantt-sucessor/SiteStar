@@ -535,3 +535,4 @@ details.talent summary { cursor: pointer; }
 @keyframes holoDrift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(0.6px); } 92% { transform: translateX(0); } 93% { transform: translateX(-3px) skewX(-2deg); } 94% { transform: translateX(0); } }
 @keyframes holoSpin { to { transform: rotate(360deg); } }
 .holo-row { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.selected-spotlight { border-color: color-mix(in srgb, var(--pc, var(--saber-blue)) 60%, transparent); box-shadow: 0 0 24px color-mix(in srgb, var(--pc, var(--saber-blue)) 18%, transparent); align-items: center; }
