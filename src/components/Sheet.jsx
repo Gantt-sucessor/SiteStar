@@ -9,7 +9,7 @@ import { ALL_TREES, REPEATABLE_TALENTS, FORCE_TECHNIQUES, FORCE_SECRETS, ALL_CLA
 import LevelUp, { AbilityPairPicker } from './LevelUp';
 import DroidShop from './DroidShop';
 import { PortraitHolo } from './Holo';
-import { FeatBrowser, TalentBrowser } from './Browsers';
+import { FeatBrowser, TalentBrowser, PowerBrowser, ForceExtrasBrowser } from './Browsers';
 import { fmtMod, d20Formula } from '../lib/dice';
 import { sendRoll } from '../lib/rolls';
 import { sfx } from '../lib/sfx';
@@ -196,6 +196,17 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
           </div>
         </div>
       )}
+      {browser === 'powers' && <PowerBrowser d={d} data={data} editable={editable} onChange={set} onClose={() => setBrowser(null)} />}
+      {browser === 'techniques' && (
+        <ForceExtrasBrowser title="Técnicas da Força" field="forceTechniques" list={FORCE_TECHNIQUES} slots={d.techniqueSlots} data={data} editable={editable}
+          onChange={set} onClose={() => setBrowser(null)} repeatable={['Recuperação de Ponto de Força', 'Domínio de Poder da Força']}
+          intro="Técnicas representam anos de prática com a Força. Vêm das classes de prestígio Aprendiz Sith, Cavaleiro Jedi e Adepto da Força, uma a cada nível par. Lorde Sith, Mestre Jedi e Discípulo da Força exigem pelo menos uma." />
+      )}
+      {browser === 'secrets' && (
+        <ForceExtrasBrowser title="Segredos da Força" field="forceSecrets" list={FORCE_SECRETS} slots={d.secretSlots} data={data} editable={editable}
+          onChange={set} onClose={() => setBrowser(null)}
+          intro="Segredos são o domínio mais profundo da Força: alteram como seus poderes funcionam, gastando Pontos de Força ou de Destino. Vêm de Lorde Sith, Mestre Jedi e Discípulo da Força, um a cada nível a partir do 2º." />
+      )}
       {browser === 'talents' && <TalentBrowser d={d} data={data} editable={editable} onClose={() => setBrowser(null)} onAdd={(t) => set({ talents: [...(data.talents || []), t] })} />}
 
       {editable && d.cls && (() => {
@@ -209,9 +220,9 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
         if (incMissing > 0) pend.push(<button key="i" className="btn sm yellow" onClick={() => { setIncPick([]); setBrowser('abilities'); }}>{incMissing} aumento{incMissing > 1 ? 's' : ''} de atributo</button>);
         if (f > 0) pend.push(<button key="f" className="btn sm yellow" onClick={() => setBrowser('feats')}>{f} talento{f > 1 ? 's' : ''}</button>);
         if (t > 0) pend.push(<button key="t" className="btn sm yellow" onClick={() => setBrowser('talents')}>{t} aptidão{t > 1 ? 'ões' : ''}</button>);
-        if (pw > 0) pend.push(<button key="p" className="btn sm yellow" onClick={() => setTab('forca')}>{pw} poder{pw > 1 ? 'es' : ''} da Força</button>);
-        if (tq > 0) pend.push(<button key="q" className="btn sm yellow" onClick={() => setTab('forca')}>{tq} Técnica{tq > 1 ? 's' : ''} da Força</button>);
-        if (sc > 0) pend.push(<button key="s" className="btn sm yellow" onClick={() => setTab('forca')}>{sc} Segredo{sc > 1 ? 's' : ''} da Força</button>);
+        if (pw > 0) pend.push(<button key="p" className="btn sm yellow" onClick={() => setBrowser('powers')}>{pw} poder{pw > 1 ? 'es' : ''} da Força</button>);
+        if (tq > 0) pend.push(<button key="q" className="btn sm yellow" onClick={() => setBrowser('techniques')}>{tq} Técnica{tq > 1 ? 's' : ''} da Força</button>);
+        if (sc > 0) pend.push(<button key="s" className="btn sm yellow" onClick={() => setBrowser('secrets')}>{sc} Segredo{sc > 1 ? 's' : ''} da Força</button>);
         if (sk > 0) pend.push(<button key="k" className="btn sm yellow" onClick={() => setTab('pericias')}>{sk} perícia{sk > 1 ? 's' : ''} treinada{sk > 1 ? 's' : ''}</button>);
         if (!pend.length) return null;
         return (
@@ -352,7 +363,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
           </div>
           {tab === 'pericias' && <SkillsTab d={d} data={data} set={set} roll={roll} editable={editable} />}
           {tab === 'combate' && <CombatTab d={d} data={data} set={set} roll={roll} editable={editable} />}
-          {tab === 'forca' && <ForceTab d={d} data={data} set={set} roll={roll} editable={editable} />}
+          {tab === 'forca' && <ForceTab d={d} data={data} set={set} roll={roll} editable={editable} openBrowser={setBrowser} />}
           {tab === 'talentos' && <FeatsTab d={d} data={data} set={set} editable={editable} openBrowser={setBrowser} />}
           {tab === 'equip' && <GearTab d={d} data={data} set={set} editable={editable} />}
           {tab === 'detalhes' && <DetailsTab d={d} data={data} set={set} setDeep={setDeep} editable={editable} isMaster={isMaster} />}
@@ -486,7 +497,7 @@ function CombatTab({ d, data, set, roll, editable }) {
   );
 }
 
-function ForceTab({ d, data, set, roll, editable }) {
+function ForceTab({ d, data, set, roll, editable, openBrowser }) {
   const [pick, setPick] = useState('');
   const useForce = d.skills.find((s) => s.name === 'Usar a Força');
   if (!d.forceSensitive) {
@@ -515,7 +526,7 @@ function ForceTab({ d, data, set, roll, editable }) {
         <button className="roll-chip" disabled={!useForce?.usable} onClick={() => roll(d20Formula(useForce.mod), 'Usar a Força', 'force')}>{fmtMod(useForce?.mod ?? 0)}</button>
       </div>
       <div className="row between">
-        <h3 className="yellow" style={{ margin: 0 }}>Poderes da Força</h3>
+        <div className="row"><h3 className="yellow" style={{ margin: 0 }}>Poderes da Força</h3><button className="btn sm" onClick={() => openBrowser('powers')}>Explorar poderes</button></div>
         <div className="row">
           <span className={`counter ${powers.length === d.powerSlots ? 'ok' : powers.length > d.powerSlots ? 'over' : ''}`}>{powers.length}/{d.powerSlots}</span>
           {editable && <button className="btn sm" onClick={() => set({ powersSpent: {} })}>Recuperar poderes</button>}
@@ -557,22 +568,22 @@ function ForceTab({ d, data, set, roll, editable }) {
         </div>
       )}
       {(d.techniqueSlots > 0 || (data.forceTechniques || []).length > 0) && (
-        <ForceExtras title="Técnicas da Força" field="forceTechniques" list={FORCE_TECHNIQUES} slots={d.techniqueSlots} data={data} set={set} editable={editable} repeatable={['Recuperação de Ponto de Força', 'Domínio de Poder da Força']} />
+        <ForceExtras onExplore={() => openBrowser('techniques')} title="Técnicas da Força" field="forceTechniques" list={FORCE_TECHNIQUES} slots={d.techniqueSlots} data={data} set={set} editable={editable} repeatable={['Recuperação de Ponto de Força', 'Domínio de Poder da Força']} />
       )}
       {(d.secretSlots > 0 || (data.forceSecrets || []).length > 0) && (
-        <ForceExtras title="Segredos da Força" field="forceSecrets" list={FORCE_SECRETS} slots={d.secretSlots} data={data} set={set} editable={editable} />
+        <ForceExtras onExplore={() => openBrowser('secrets')} title="Segredos da Força" field="forceSecrets" list={FORCE_SECRETS} slots={d.secretSlots} data={data} set={set} editable={editable} />
       )}
     </div>
   );
 }
 
-function ForceExtras({ title, field, list, slots, data, set, editable, repeatable = [] }) {
+function ForceExtras({ title, field, list, slots, data, set, editable, repeatable = [], onExplore }) {
   const [pick, setPick] = useState('');
   const chosen = data[field] || [];
   return (
     <div>
       <div className="row between">
-        <h3 className="yellow" style={{ margin: 0 }}>{title}</h3>
+        <div className="row"><h3 className="yellow" style={{ margin: 0 }}>{title}</h3><button className="btn sm" onClick={onExplore}>Explorar</button></div>
         <span className={`counter ${chosen.length === slots ? 'ok' : chosen.length > slots ? 'over' : ''}`}>{chosen.length}/{slots}</span>
       </div>
       <div className="list" style={{ marginTop: 6 }}>

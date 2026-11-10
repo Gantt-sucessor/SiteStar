@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FEATS, SKILLS, WEAPON_GROUPS } from '../data/rules';
+import { FEATS, SKILLS, WEAPON_GROUPS, FORCE_POWERS } from '../data/rules';
 import { REPEATABLE_TALENTS } from '../data/prestige';
 import { meetsPrereq } from './Sheet';
 
@@ -176,6 +176,111 @@ export function FeatBrowser({ d, data, onAdd, onClose, editable = true }) {
             </div>
           </div>
         ))}
+      </div>
+    </Modal>
+  );
+}
+
+// ---------- Poderes da Força ----------
+export function PowerBrowser({ d, data, onChange, onClose, editable = true }) {
+  const powers = data.forcePowers || [];
+  const [q, setQ] = useState('');
+  const [filter, setFilter] = useState('todos');
+  const left = d.powerSlots - powers.length;
+  const fallen = (data.darkSide || 0) > 0;
+  const items = FORCE_POWERS
+    .map((p) => ({ ...p, count: powers.filter((x) => x === p.name).length }))
+    .filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.desc.toLowerCase().includes(q.toLowerCase()))
+    .filter((p) => filter === 'todos'
+      || (filter === 'meus' && p.count)
+      || (filter === 'sombrio' && p.tags.includes('Lado Sombrio'))
+      || (filter === 'claro' && p.tags.includes('Lado Claro'))
+      || (filter === 'neutros' && !p.tags.some((t) => t.startsWith('Lado'))));
+  const add = (name) => onChange({ forcePowers: [...powers, name] });
+  const remove = (name) => {
+    const i = powers.lastIndexOf(name);
+    if (i >= 0) onChange({ forcePowers: powers.filter((_, j) => j !== i) });
+  };
+  return (
+    <Modal title="Poderes da Força" onClose={onClose}>
+      <div className="row between" style={{ marginBottom: 10 }}>
+        <div className="small muted">
+          Cada <b>Treinamento da Força</b> ensina 1 + mod. de Sabedoria poderes. Você pode aprender o mesmo poder várias vezes: cada cópia é <b>um uso por encontro</b>.
+          O teste é <b>Usar a Força</b> ({d.skills.find((s) => s.name === 'Usar a Força') ? `+${d.skills.find((s) => s.name === 'Usar a Força').mod}` : '—'}) contra a CD ou defesa indicada.
+        </div>
+        <span className={`counter ${left === 0 ? 'ok' : left < 0 ? 'over' : ''}`}>{left > 0 ? `${left} para aprender` : left === 0 ? 'tudo escolhido' : `${-left} a mais`}</span>
+      </div>
+      <div className="row" style={{ marginBottom: 12, gap: 6 }}>
+        <input placeholder="Buscar poder ou efeito (ex.: dano, cura, mente)..." value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: 1, minWidth: 220 }} autoFocus />
+        {[['todos', 'Todos'], ['neutros', 'Neutros'], ['claro', 'Lado Claro'], ['sombrio', 'Lado Sombrio'], ['meus', 'Que eu sei']].map(([k, l]) => (
+          <button key={k} className={`btn sm ${filter === k ? 'yellow primary' : ''} ${k === 'sombrio' ? 'red' : ''}`} onClick={() => setFilter(k)}>{l}</button>
+        ))}
+      </div>
+      <div className="pick-grid" style={{ maxHeight: '62vh', overflowY: 'auto', paddingRight: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+        {items.map((p) => {
+          const dark = p.tags.includes('Lado Sombrio');
+          const light = p.tags.includes('Lado Claro');
+          return (
+            <div key={p.name} className={`pick ${p.count ? 'selected' : ''}`} style={{ cursor: 'default', '--pc': dark ? 'var(--sith-red)' : 'var(--saber-blue)' }}>
+              <div className="row between" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+                <h3 style={{ margin: 0 }}>{p.name}</h3>
+                {p.count > 0 && <span className="tag blue">{p.count} uso{p.count > 1 ? 's' : ''}</span>}
+              </div>
+              <div className="mods" style={{ marginTop: 4 }}>
+                <span className="tag">{p.time}</span>
+                {p.tags.map((t) => <span key={t} className={`tag ${t === 'Lado Sombrio' ? 'red' : t === 'Lado Claro' ? 'blue' : ''}`}>{t}</span>)}
+              </div>
+              <div className="desc" style={{ marginTop: 6 }}>{p.desc}</div>
+              <div className="power-dc" style={{ marginTop: 6 }}>
+                {p.dcs.map(([dc, eff], i) => <div key={i}><b>{typeof dc === 'number' ? `CD ${dc}` : `vs ${dc}`}</b> {eff}</div>)}
+              </div>
+              {dark && <div className="tiny red-text" style={{ marginTop: 6 }}>Usar aumenta a Pontuação do Lado Sombrio em 1. Ponto de Força não melhora o teste.</div>}
+              {light && fallen && <div className="tiny yellow" style={{ marginTop: 6 }}>Com Lado Sombrio ≥ 1, Ponto de Força não melhora este teste.</div>}
+              {editable && (
+                <div className="row" style={{ marginTop: 8, justifyContent: 'flex-end' }}>
+                  {p.count > 0 && <button className="btn sm ghost pm" onClick={() => remove(p.name)}>−</button>}
+                  <button className="btn sm" onClick={() => add(p.name)}>{p.count ? '+1 uso' : 'Aprender'}</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}
+
+// ---------- Técnicas e Segredos da Força ----------
+export function ForceExtrasBrowser({ title, intro, list, field, slots, data, onChange, onClose, repeatable = [], editable = true }) {
+  const chosen = data[field] || [];
+  const left = slots - chosen.length;
+  return (
+    <Modal title={title} onClose={onClose}>
+      <div className="row between" style={{ marginBottom: 12 }}>
+        <div className="small muted">{intro}</div>
+        <span className={`counter ${left === 0 ? 'ok' : left < 0 ? 'over' : ''}`}>{left > 0 ? `${left} para escolher` : left === 0 ? 'tudo escolhido' : `${-left} a mais`}</span>
+      </div>
+      <div className="pick-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+        {list.map((x) => {
+          const count = chosen.filter((c) => c === x.name).length;
+          const rep = repeatable.includes(x.name);
+          return (
+            <div key={x.name} className={`pick ${count ? 'selected' : ''}`} style={{ cursor: 'default', '--pc': 'var(--saber-purple)' }}>
+              <div className="row between" style={{ flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+                <h3 style={{ margin: 0 }}>{x.name}</h3>
+                {count > 0 && <span className="tag green">{count > 1 ? `×${count}` : 'você tem'}</span>}
+              </div>
+              <div className="desc" style={{ marginTop: 6 }}>{x.desc}</div>
+              {rep && <div className="tiny dim" style={{ marginTop: 4 }}>Pode ser escolhida mais de uma vez.</div>}
+              {editable && (
+                <div className="row" style={{ marginTop: 8, justifyContent: 'flex-end' }}>
+                  {count > 0 && <button className="btn sm ghost red" onClick={() => { const i = chosen.lastIndexOf(x.name); onChange({ [field]: chosen.filter((_, j) => j !== i) }); }}>Remover</button>}
+                  {(!count || rep) && <button className="btn sm" onClick={() => onChange({ [field]: [...chosen, x.name] })}>{count ? 'Pegar de novo' : 'Pegar'}</button>}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </Modal>
   );
