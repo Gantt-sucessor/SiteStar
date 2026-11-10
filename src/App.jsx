@@ -18,7 +18,7 @@ import { Privacy, Terms } from './pages/Legal';
 const INTRO_KEY = 'holocron:intro-seen';
 
 function TopBar({ onIntro }) {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [muted, setMuted] = useState(isMuted());
   return (
     <header className="topbar">
@@ -33,7 +33,7 @@ function TopBar({ onIntro }) {
       <div className="spacer" />
       <button className="btn sm ghost" onClick={onIntro} title="Rever a abertura">▶ Abertura</button>
       <button className="btn sm ghost icon" onClick={() => setMuted(toggleMute())} title={muted ? 'Ativar sons' : 'Silenciar sons'}>{muted ? '🔇' : '🔊'}</button>
-      <div className="user-chip">
+      <div className="user-chip" title={`Conectado como ${user?.email ?? ''}`}>
         {profile?.avatar_url
           ? <img className="avatar" src={profile.avatar_url} alt="" referrerPolicy="no-referrer" />
           : <span className="avatar">{(profile?.display_name || '?')[0]}</span>}

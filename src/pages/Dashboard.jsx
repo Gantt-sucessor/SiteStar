@@ -12,6 +12,7 @@ export default function Dashboard() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [chars, setChars] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [camps, setCamps] = useState({ owned: [], joined: [] });
   const [code, setCode] = useState('');
   const [joinError, setJoinError] = useState('');
@@ -20,7 +21,8 @@ export default function Dashboard() {
   const [busy, setBusy] = useState(false);
 
   const load = () => {
-    listMyCharacters(user.id).then(setChars).catch(() => setChars([]));
+    setLoadError('');
+    listMyCharacters(user.id).then(setChars).catch((e) => { setChars([]); setLoadError(e.message || String(e)); });
     listMyCampaigns(user.id).then(setCamps).catch(() => {});
   };
   useEffect(load, [user.id]);
@@ -61,6 +63,11 @@ export default function Dashboard() {
     <div className="page">
       <div className="kicker">Bem-vindo(a) de volta{firstName ? `, ${firstName}` : ''}</div>
       <h1 className="yellow" style={{ marginTop: 4 }}>Ponte de comando</h1>
+      <div className="tiny muted" style={{ marginTop: -6, marginBottom: 6 }}>
+        Conectado como <b>{user.email || profile?.display_name}</b> via <b>{(user.app_metadata?.providers || [user.app_metadata?.provider]).filter(Boolean).map((p) => (p === 'google' ? 'Google' : p === 'discord' ? 'Discord' : p)).join(' + ')}</b>.
+        {' '}Suas fichas ficam ligadas a esta conta.
+      </div>
+      {loadError && <div className="error-box" style={{ marginBottom: 10 }}>Não foi possível carregar suas fichas: {loadError}. Tente recarregar a página (Ctrl + F5) ou sair e entrar de novo.</div>}
 
       <div className="grid grid-2" style={{ marginTop: 10 }}>
         <section className="panel">
