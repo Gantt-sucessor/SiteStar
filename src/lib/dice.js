@@ -9,6 +9,7 @@ function rand(sides) {
 const TERM = /([+-]?)\s*(?:(\d*)d(\d+)(?:kh(\d+))?|(\d+))/gi;
 
 export function parseFormula(formula) {
+  formula = splitMult(formula)[0];
   const clean = String(formula).replace(/\s+/g, '').toLowerCase();
   if (!clean) return null;
   const terms = [];
@@ -29,7 +30,18 @@ export function parseFormula(formula) {
   return terms.length ? terms : null;
 }
 
+// Multiplicador de dano de veículo: "6d10x2" ou "6d10×2" rola 6d10 e multiplica
+function splitMult(formula) {
+  const m = /^(.*?)[x×](\d+)\s*$/i.exec(String(formula).replace(/\s+/g, ''));
+  return m ? [m[1], Number(m[2])] : [formula, 1];
+}
+
 export function roll(formula) {
+  const [base, mult] = splitMult(formula);
+  if (mult !== 1) {
+    const r = roll(base);
+    return { ...r, formula: `${r.formula}×${mult}`, total: r.total * mult, mult, subtotal: r.total };
+  }
   const terms = parseFormula(formula);
   if (!terms) throw new Error(`Fórmula inválida: ${formula}`);
   let total = 0;

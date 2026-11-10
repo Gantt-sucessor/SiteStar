@@ -16,6 +16,8 @@ import { useNpcs, encounterDifficulty } from '../lib/npcs';
 import { NpcCard, NpcSheet, BestiaryPicker, NpcBuilder, npcHp } from '../components/Npcs';
 import { sendRoll } from '../lib/rolls';
 import Holo from '../components/Holo';
+import { VehicleCard, VehiclePicker } from '../components/Vehicles';
+import { deriveVehicle } from '../lib/vehicles';
 import { d20Formula } from '../lib/dice';
 
 function useCampaign(id) {
@@ -182,6 +184,9 @@ function PlayerView({ camp, user, onCrawl }) {
               <PartyList characters={characters} profiles={profiles} />
             </Panel>
             <Panel title="Iniciativa"><InitiativeView initiative={campaign.initiative} /></Panel>
+            {(campaign.vehicles || []).map((v) => (
+              <VehicleCard key={v.uid} v={v} characters={characters} campaignId={campaign.id} />
+            ))}
           </div>
           <Panel title="Rolagens da mesa"><RollFeed campaignId={campaign.id} userId={user.id} profiles={profiles} /></Panel>
         </div>
@@ -308,13 +313,28 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
     saveCampaign({ initiative: initRef.current });
   };
 
+  const vehTimer = useRef(null);
+  const partyShips = campaign.vehicles || [];
+  const saveShips = (vehicles) => {
+    setCampaign((c) => ({ ...c, vehicles }));
+    clearTimeout(vehTimer.current);
+    vehTimer.current = setTimeout(async () => {
+      const { error } = await supabase.from('campaigns').update({ vehicles }).eq('id', campaign.id);
+      if (error) setShipError(error.message.includes('vehicles') ? 'Rode o arquivo supabase/naves.sql no SQL Editor do Supabase para ativar as naves do grupo.' : error.message);
+      else setShipError('');
+    }, 600);
+  };
+  const [shipError, setShipError] = useState('');
+  const [shipPicker, setShipPicker] = useState(null); // 'grupo' | 'inimiga'
   const scene = (npcApi.npcs || []).filter((x) => x.in_scene);
+  const sceneNpcs = scene.filter((x) => x.data.kind !== 'vehicle');
+  const sceneShips = scene.filter((x) => x.data.kind === 'vehicle');
   const difficulty = encounterDifficulty(scene, characters.map((c) => derive(c.data).level));
   const rollSceneInitiative = async () => {
     for (const row of scene) {
       if ((row.data.condition || 0) >= 5) continue;
-      const cp = 0;
-      await sendRoll({ formula: d20Formula(row.data.init + cp), label: 'Iniciativa', kind: 'initiative', campaignId: campaign.id, character: { id: null, name: row.data.name }, hidden: npcSecret });
+      const ini = row.data.kind === 'vehicle' ? deriveVehicle(row.data).init : row.data.init;
+      await sendRoll({ formula: d20Formula(ini), label: 'Iniciativa', kind: 'initiative', campaignId: campaign.id, character: { id: null, name: row.data.name }, hidden: npcSecret });
     }
   };
   const addNpcs = async (items, inScene) => {
@@ -337,7 +357,7 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
       </CampaignHeader>
 
       <div className="tabs">
-        {[['mesa', 'Mesa'], ['ameacas', 'Ameaças / NPCs'], ['abertura', 'Abertura'], ['notas', 'Anotações'], ['config', 'Configurações']].map(([k, l]) => (
+        {[['mesa', 'Mesa'], ['ameacas', 'Ameaças / NPCs'], ['naves', 'Naves'], ['abertura', 'Abertura'], ['notas', 'Anotações'], ['config', 'Configurações']].map(([k, l]) => (
           <button key={k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -373,7 +393,11 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
                 <div className="empty small">Nenhum inimigo em cena.</div>
               ) : (
                 <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-                  {scene.map((row) => (
+                  {sceneShips.map((row) => (
+                    <VehicleCard key={row.id} v={row.data} enemy compact canEdit campaignId={campaign.id} secret={npcSecret}
+                      onChange={(patch) => npcApi.update(row.id, { data: patch })} onRemove={() => npcApi.update(row.id, { in_scene: false })} />
+                  ))}
+                  {sceneNpcs.map((row) => (
                     <NpcCard key={row.id} row={row} campaignId={campaign.id} secret={npcSecret}
                       onChange={(patch) => npcApi.update(row.id, patch)} onOpen={() => setOpenNpc(row.id)}
                       onRemoveFromScene={() => npcApi.update(row.id, { in_scene: false })} />
@@ -383,6 +407,7 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
               <div className="row" style={{ marginTop: 10 }}>
                 <button className="btn sm red" onClick={() => setPicker('livro')}>+ Ficha do livro</button>
                 <button className="btn sm red" onClick={() => setPicker('gerador')}>+ Criar NPC</button>
+                <button className="btn sm red" onClick={() => setShipPicker('inimiga')}>+ Nave inimiga</button>
                 <button className="btn sm" onClick={() => setTab('ameacas')}>Biblioteca de NPCs</button>
                 {scene.length > 0 && <button className="btn sm yellow" onClick={rollSceneInitiative}>Rolar iniciativa de todos</button>}
                 {scene.length > 0 && <button className="btn sm ghost" onClick={() => scene.forEach((row) => npcApi.update(row.id, { in_scene: false }))}>Limpar cena</button>}
@@ -396,6 +421,46 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
             <RollFeed campaignId={campaign.id} userId={user.id} profiles={profiles} toastOthers onRoll={onRoll} canClear />
           </Panel>
         </div>
+      )}
+
+      {tab === 'naves' && (
+        <div className="stack" style={{ gap: 16 }}>
+          {shipError && <div className="error-box">{shipError}</div>}
+          <Panel title={`Naves do grupo (${partyShips.length})`} className="yellow" aside={<button className="btn sm yellow" onClick={() => setShipPicker('grupo')}>+ Nave do grupo</button>}>
+            <p className="small muted">A nave (ou o speeder) dos heróis. Os jogadores veem a ficha na aba Mesa e podem rolar os ataques; só você aplica dano e troca a tripulação. Coloque um jogador como piloto para a Reflexo usar o nível heróico dele.</p>
+            {partyShips.length === 0 ? <div className="empty small">O grupo ainda não tem nave.</div> : (
+              <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 12 }}>
+                {partyShips.map((v) => (
+                  <VehicleCard key={v.uid} v={v} characters={characters} canEdit campaignId={campaign.id}
+                    onChange={(patch) => saveShips(partyShips.map((x) => (x.uid === v.uid ? { ...x, ...patch } : x)))}
+                    onRemove={() => confirm(`Remover ${v.name} do grupo?`) && saveShips(partyShips.filter((x) => x.uid !== v.uid))} />
+                ))}
+              </div>
+            )}
+          </Panel>
+          <Panel title="Naves inimigas" className="red" aside={<button className="btn sm red" onClick={() => setShipPicker('inimiga')}>+ Nave inimiga</button>}>
+            <p className="small muted">Caças TIE, walkers, corvetas... Elas ficam na lista de ameaças (só você vê) e aparecem na área Em cena da Mesa.</p>
+            {(npcApi.npcs || []).filter((x) => x.data.kind === 'vehicle').length === 0 ? <div className="empty small">Nenhuma nave inimiga.</div> : (
+              <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
+                {(npcApi.npcs || []).filter((x) => x.data.kind === 'vehicle').map((row) => (
+                  <div key={row.id}>
+                    <VehicleCard v={row.data} enemy canEdit compact campaignId={campaign.id} secret={npcSecret}
+                      onChange={(patch) => npcApi.update(row.id, { data: patch })} onRemove={() => confirm(`Apagar ${row.data.name}?`) && npcApi.remove([row.id])} />
+                    <label className="check tiny" style={{ marginTop: 4 }}><input type="checkbox" checked={row.in_scene} onChange={(e) => npcApi.update(row.id, { in_scene: e.target.checked })} /> Em cena</label>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
+      )}
+      {shipPicker && (
+        <VehiclePicker enemy={shipPicker === 'inimiga'} onClose={() => setShipPicker(null)}
+          onAdd={async (items) => {
+            if (shipPicker === 'grupo') saveShips([...partyShips, ...items]);
+            else await npcApi.add(items, true);
+            setShipPicker(null);
+          }} />
       )}
 
       {tab === 'ameacas' && (
@@ -626,8 +691,8 @@ function CampaignConfig({ campaign, members, profiles, onSave }) {
 
 function NpcLibrary({ api, campaignId, secret, selected, onSelect, onPicker }) {
   const [q, setQ] = useState('');
-  const list = (api.npcs || []).filter((x) => !q || x.data.name.toLowerCase().includes(q.toLowerCase()));
-  const current = (api.npcs || []).find((x) => x.id === selected) || list[0];
+  const list = (api.npcs || []).filter((x) => x.data.kind !== 'vehicle' && (!q || x.data.name.toLowerCase().includes(q.toLowerCase())));
+  const current = (api.npcs || []).find((x) => x.id === selected && x.data.kind !== 'vehicle') || list[0];
   const duplicate = async (row) => {
     const base = row.data.name.replace(/ \d+$/, '');
     const count = (api.npcs || []).filter((x) => x.data.name.startsWith(base)).length;

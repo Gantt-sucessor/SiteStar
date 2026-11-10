@@ -23,6 +23,7 @@ export function RollBreakdown({ result }) {
           </span>
         );
       })}
+      {result.mult > 1 && <span> = {result.subtotal} <b>×{result.mult}</b></span>}
     </span>
   );
 }

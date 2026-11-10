@@ -104,9 +104,21 @@ Para publicar: suba a pasta para o GitHub, importe o repositório na [Vercel](ht
 - **Dificuldade do encontro** e **XP**, calculados pelas regras do cap. 14: soma dos ND ÷ 3 comparada ao nível do grupo, com XP pela Tabela 14-1.
 - As rolagens dos NPCs podem ser **secretas** (só o mestre vê). Os jogadores nunca veem as fichas dos NPCs.
 
+## Naves e veículos
+
+> Antes de usar, rode [supabase/naves.sql](supabase/naves.sql) no **SQL Editor** do Supabase (uma vez).
+
+- **Os 18 veículos do livro** (cap. 10): speeders, walkers, X-wing, Y-wing, TIEs, YT-1300, corveta, Destróier Estelar...
+- **Nave do grupo** (aba **Naves** do mestre): cada nave tem ficha com casco, escudo (VE), RD, limiar e curso da condição.
+  - O mestre escolhe piloto, co-piloto e artilheiros entre os personagens.
+  - A Reflexo usa o nível heróico do piloto, e os ataques usam o BBA de quem opera a arma mais a Int da nave.
+  - O dano é aplicado já passando por escudo e RD.
+  - Os jogadores veem a nave na aba Mesa e rolam os ataques.
+- **Naves inimigas:** entram na área **Em cena**, junto com os NPCs, e contam na dificuldade do encontro.
+- O rolador entende o multiplicador de dano de veículo (`6d10×2`).
+
 ## Limitações conhecidas
 
 - **Fora do cálculo automático:**
-  - veículos e naves;
   - aumentos de habilidade por nível, que são registrados em **Detalhes → Valores de habilidade**;
   - pré-requisitos de talentos e de classes de prestígio, que são exibidos mas não bloqueiam a escolha (o mestre decide).
