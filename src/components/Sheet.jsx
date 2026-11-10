@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ABILITIES, CONDITION_TRACK, FEATS, FORCE_POWERS, FORCE_TREES, WEAPONS, ARMORS, GEAR, WEAPON_GROUPS,
   SKILLS, LANGUAGES, FEAT_LEVELS, ABILITY_INCREASE_LEVELS, featByName, powerByName,
@@ -155,6 +156,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             <label className="field" style={{ width: 120 }}>XP
               <input type="number" value={data.xp || 0} onChange={(e) => set({ xp: Number(e.target.value) || 0 })} style={{ width: '100%' }} />
             </label>
+            {characterId && <Link className="btn" to={`/personagem/${characterId}/editar`} title="Reabre o assistente com esta ficha: espécie, classe, atributos, perícias, talentos e compras">✎ Editar ficha</Link>}
             <button className="btn yellow" onClick={() => setLevelOpen(true)} disabled={d.level >= 20 || !d.cls}>Subir de nível</button>
           </div>
         )}

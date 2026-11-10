@@ -82,6 +82,7 @@ function Shell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/personagem/novo" element={<CharacterWizard />} />
           <Route path="/personagem/:id" element={<CharacterPage />} />
+          <Route path="/personagem/:id/editar" element={<CharacterWizard />} />
           <Route path="/campanha/:id" element={<CampaignPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

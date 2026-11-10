@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import {
   ABILITIES, SPECIES, CLASSES, ERAS, POINT_BUY_COST, POINT_BUY_TOTAL, STANDARD_ARRAY,
   DROID_CATEGORIES, DROID_SIZES, DROID_POINT_BUY_TOTAL, DROID_STANDARD_ARRAY,
@@ -21,16 +22,37 @@ const modTags = (mods) => Object.entries(mods || {}).map(([k, v]) => (
   <span key={k} className={`tag ${v > 0 ? 'green' : 'red'}`}>{v > 0 ? '+' : ''}{v} {k.toUpperCase()}</span>
 ));
 
-export default function CharacterWizard() {
+// Rota: /personagem/novo cria; /personagem/:id/editar reabre o assistente com a ficha existente.
+export default function CharacterWizardRoute() {
+  const { id } = useParams();
+  const [row, setRow] = useState(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (!id) return;
+    supabase.from('characters').select('*').eq('id', id).maybeSingle().then(({ data, error }) => {
+      if (error || !data) setErr(error?.message || 'Ficha não encontrada ou sem permissão.');
+      else setRow(data);
+    });
+  }, [id]);
+  if (!id) return <CharacterWizard />;
+  if (err) return <div className="page"><div className="error-box">{err}</div></div>;
+  if (!row) return <div className="loader"><div className="saber" />CARREGANDO FICHA</div>;
+  return <CharacterWizard initial={row} key={row.id} />;
+}
+
+export function CharacterWizard({ initial }) {
+  const editing = Boolean(initial);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [step, setStep] = useState(0);
   const [restored] = useState(() => {
+    if (editing) return false;
     try { const dr = JSON.parse(localStorage.getItem('holocron:draft') || 'null'); return Boolean(dr && (dr.name || dr.species || dr.classId)); } catch { return false; }
   });
   const [showRestored, setShowRestored] = useState(true);
   const [data, setData] = useState(() => {
+    if (editing) return { ...newCharacter(), ...initial.data, abilityMethod: 'manual' };
     try {
       const draft = JSON.parse(localStorage.getItem('holocron:draft') || 'null');
       if (draft) return draft;
@@ -38,13 +60,14 @@ export default function CharacterWizard() {
     return { ...newCharacter(), player: profile?.display_name || '' };
   });
   const [campaigns, setCampaigns] = useState([]);
-  const [campaignId, setCampaignId] = useState(params.get('campanha') || '');
+  const [campaignId, setCampaignId] = useState(editing ? (initial.campaign_id || '') : (params.get('campanha') || ''));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const d = useMemo(() => derive(data), [data]);
   const set = (patch) => setData((cur) => ({ ...cur, ...patch }));
 
   useEffect(() => {
+    if (editing) return;
     try { localStorage.setItem('holocron:draft', JSON.stringify(data)); } catch { /* cheio */ }
   }, [data]);
 
@@ -66,7 +89,7 @@ export default function CharacterWizard() {
     setSaving(true); setError('');
     try {
       let final = { ...data };
-      if (d.cls?.startingGear) {
+      if (!editing && d.cls?.startingGear) {
         for (const g of d.cls.startingGear) {
           if (!final.weapons.some((w) => w.name === g)) {
             const w = WEAPONS.find((x) => x.name === g);
@@ -78,8 +101,8 @@ export default function CharacterWizard() {
       delete final.assign;
       delete final.methodSaves;
       delete final.droidBudget; // sobras do orçamento de dróide se perdem
-      const row = await saveCharacter({ data: final, campaign_id: campaignId || null });
-      localStorage.removeItem('holocron:draft');
+      const row = await saveCharacter({ id: initial?.id, data: final, campaign_id: campaignId || null });
+      if (!editing) localStorage.removeItem('holocron:draft');
       sfx.saber();
       hyperspace();
       navigate(`/personagem/${row.id}`);
@@ -91,6 +114,10 @@ export default function CharacterWizard() {
   };
 
   const reset = () => {
+    if (editing) {
+      if (confirm('Descartar as alterações e voltar para a ficha?')) navigate(`/personagem/${initial.id}`);
+      return;
+    }
     if (!confirm('Descartar este rascunho e começar do zero?')) return;
     localStorage.removeItem('holocron:draft');
     setData({ ...newCharacter(), player: profile?.display_name || '' });
@@ -101,10 +128,10 @@ export default function CharacterWizard() {
     <div className="page">
       <div className="section-head" style={{ marginTop: 0 }}>
         <div>
-          <div className="kicker">Registro de personagem</div>
-          <h1 className="yellow" style={{ margin: 0 }}>Novo Herói</h1>
+          <div className="kicker">{editing ? 'Editando ficha existente' : 'Registro de personagem'}</div>
+          <h1 className="yellow" style={{ margin: 0 }}>{editing ? `Editar ${data.name || 'personagem'}` : 'Novo Herói'}</h1>
         </div>
-        <button className="btn sm ghost" onClick={reset}>Recomeçar</button>
+        <button className="btn sm ghost" onClick={reset}>{editing ? 'Descartar alterações' : 'Recomeçar'}</button>
       </div>
 
       {restored && showRestored && (
@@ -119,6 +146,13 @@ export default function CharacterWizard() {
             <button className="btn sm" onClick={() => setShowRestored(false)}>Continuar</button>
             <button className="btn sm yellow" onClick={() => { localStorage.removeItem('holocron:draft'); setData({ ...newCharacter(), player: profile?.display_name || '' }); setShowRestored(false); go(0); }}>Começar do zero</button>
           </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="info-box small" style={{ marginBottom: 14 }}>
+          Você está editando <b>{data.name}</b> ({d.classLabel}). Mude o que quiser em qualquer passo e clique em <b>Salvar alterações</b> na Revisão.
+          Compras no passo Equipamento descontam dos créditos atuais. Para subir de nível, use o botão da ficha.
         </div>
       )}
 
@@ -150,7 +184,7 @@ export default function CharacterWizard() {
             <button className="btn" onClick={prev} disabled={step === 0}>← Voltar</button>
             {step < STEPS.length - 1
               ? <button className="btn primary" onClick={next} disabled={(step === 1 && !data.species) || (step === 2 && !data.classId)}>Avançar →</button>
-              : <button className="btn yellow primary lg" onClick={finish} disabled={saving || !data.species || !data.classId || !data.name}>{saving ? 'Salvando...' : 'Concluir personagem'}</button>}
+              : <button className="btn yellow primary lg" onClick={finish} disabled={saving || !data.species || !data.classId || !data.name}>{saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Concluir personagem'}</button>}
           </div>
         </div>
         <aside className="wizard-aside"><Preview data={data} d={d} /></aside>
@@ -163,7 +197,7 @@ function Preview({ data, d }) {
   return (
     <Panel title="Prévia" className="yellow" aside={<span className="tiny dim mono">HOLO-ID</span>}>
       <div style={{ fontFamily: 'var(--font-head)', color: 'var(--sw-yellow)', fontSize: '1.1rem' }}>{data.name || 'Sem nome'}</div>
-      <div className="small muted">{d.spLabel ?? '—'} · {d.cls?.name ?? '—'} 1</div>
+      <div className="small muted">{d.spLabel ?? '—'} · {d.cls ? d.classLabel : '—'}</div>
       <div className="hr" />
       <div className="abilities" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         {d.abilities.map((a) => (
@@ -222,7 +256,7 @@ function StepSpecies({ data, set, d }) {
     <Panel title="Escolha sua espécie">
       <div className="pick-grid">
         {SPECIES.map((s) => (
-          <button key={s.id} className={`pick ${data.species === s.id ? 'selected' : ''}`} onClick={() => set({ species: s.id, trainedSkills: [], languages: [], ...(s.droid ? { feats: (data.feats || []).filter((f) => !/Força/.test(f)), forcePowers: [], ...(data.classId === 'jedi' ? { classId: '' } : {}) } : {}) })}>
+          <button key={s.id} className={`pick ${data.species === s.id ? 'selected' : ''}`} onClick={() => s.id !== data.species && set({ species: s.id, trainedSkills: [], languages: [], ...(s.droid ? { feats: (data.feats || []).filter((f) => !/Força/.test(f)), forcePowers: [], ...(data.classId === 'jedi' ? { classId: '' } : {}) } : {}) })}>
             <h3>{s.name}</h3>
             <div className="desc">{s.desc}</div>
             <div className="mods">{Object.keys(s.mods).length ? modTags(s.mods) : <span className="tag">sem ajustes</span>}{s.size !== 'Médio' && <span className="tag yellow">{s.size}</span>}</div>
@@ -276,7 +310,7 @@ function StepClass({ data, set, d }) {
         {CLASSES.map((c) => (
           <button key={c.id} style={{ '--pc': c.color }} className={`pick ${data.classId === c.id ? 'selected' : ''} ${isDroid && c.id === 'jedi' ? 'disabled' : ''}`}
             title={isDroid && c.id === 'jedi' ? 'Dróides não podem ser Jedi' : ''}
-            onClick={() => { if (isDroid && c.id === 'jedi') return; set({ classId: c.id, trainedSkills: [], talents: [], forcePowers: [] }); sfx.saber(); }}>
+            onClick={() => { if ((isDroid && c.id === 'jedi') || c.id === data.classId) return; set({ classId: c.id, trainedSkills: [], talents: [], forcePowers: [] }); sfx.saber(); }}>
             <div style={{ height: 3, width: '60%', background: c.color, boxShadow: `0 0 10px ${c.color}`, borderRadius: 3, marginBottom: 10 }} />
             <h3>{c.name}</h3>
             <div className="desc">{c.desc}</div>
@@ -316,7 +350,7 @@ function StepAbilities({ data, set, d }) {
     const saves = { ...(data.methodSaves || {}), [method]: { base: data.base, assign } };
     const restored = saves[m];
     const fill = m === 'manual' ? 10 : 8;
-    const base = restored?.base ?? { vig: fill, des: fill, con: fill, int: fill, sab: fill, car: fill };
+    const base = restored?.base ?? (m === 'manual' ? { ...data.base } : { vig: fill, des: fill, con: fill, int: fill, sab: fill, car: fill });
     set({ abilityMethod: m, base, assign: restored?.assign ?? {}, methodSaves: saves });
   };
 
@@ -472,7 +506,7 @@ function StepTalent({ data, set, d }) {
               const ok = prereq.every((r) => meetsPrereq(r, d, data));
               return (
                 <button key={name} style={{ '--pc': d.cls.color }} className={`pick ${on ? 'selected' : ''} ${!ok ? 'disabled' : ''}`}
-                  onClick={() => ok && set({ talents: on ? talents.filter((t) => t !== name) : talents.length >= d.talentSlots ? [name] : [...talents, name] })}>
+                  onClick={() => ok && set({ talents: on ? talents.filter((t) => t !== name) : talents.length >= d.talentSlots ? (d.talentSlots === 1 ? [name] : talents) : [...talents, name] })}>
                   <h3>{name}</h3>
                   <div className="desc">{desc}</div>
                   {prereq.length > 0 && <div className="tiny dim" style={{ marginTop: 6 }}>Requer: {prereq.join(', ')}</div>}
@@ -485,7 +519,7 @@ function StepTalent({ data, set, d }) {
       {d.forceSensitive && (
         <details>
           <summary className="small muted" style={{ cursor: 'pointer' }}>Aptidões da Força</summary>
-          <div style={{ marginTop: 10 }}><TalentPicker d={d} data={data} onAdd={(t) => set({ talents: talents.length >= d.talentSlots ? [t] : [...talents, t] })} /></div>
+          <div style={{ marginTop: 10 }}><TalentPicker d={d} data={data} onAdd={(t) => set({ talents: talents.length >= d.talentSlots && d.talentSlots === 1 ? [t] : [...talents, t] })} /></div>
         </details>
       )}
     </Panel>
