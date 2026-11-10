@@ -6,9 +6,31 @@ import Holo from './Holo';
 import { CLASS_EXAMPLES, classHoloSrcs } from '../data/holoExamples';
 
 // Escolha da classe ao subir de nível: continuar uma classe, multiclassear ou entrar numa classe de prestígio.
+// Escolha de +1 em duas habilidades diferentes (níveis 4, 8, 12, 16 e 20)
+export function AbilityPairPicker({ d, value, onChange }) {
+  const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : value.length >= 2 ? [value[1], id] : [...value, id]);
+  return (
+    <div className="abilities" style={{ gridTemplateColumns: `repeat(${d.abilities.length}, minmax(0, 1fr))`, gap: 6 }}>
+      {d.abilities.map((a) => {
+        const on = value.includes(a.id);
+        return (
+          <button key={a.id} type="button" className={`ability clickable ${on ? 'selected' : ''}`}
+            style={{ padding: '8px 2px', cursor: 'pointer', borderColor: on ? 'var(--sw-yellow)' : undefined, boxShadow: on ? '0 0 14px rgba(255,232,31,0.3)' : undefined, background: on ? 'rgba(255,232,31,0.07)' : undefined, color: 'var(--text)', font: 'inherit' }}
+            onClick={() => toggle(a.id)}>
+            <div className="abbr">{a.short}</div>
+            <div className="score" style={{ fontSize: '1.2rem' }}>{d.scores[a.id]}{on ? <span className="green-text"> → {d.scores[a.id] + 1}</span> : ''}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function LevelUp({ d, data, onConfirm, onClose }) {
   const [pick, setPick] = useState(d.classes[0]?.cls.id ?? '');
+  const [inc, setInc] = useState([]);
   const next = d.level + 1;
+  const needsInc = ABILITY_INCREASE_LEVELS.includes(next);
 
   const options = [
     ...d.classes.map((x) => ({ cls: x.cls, current: x.levels, kind: 'atual' })),
@@ -94,9 +116,17 @@ export default function LevelUp({ d, data, onConfirm, onClose }) {
             </div>
           </div>
         )}
+        {needsInc && (
+          <div className="info-box" style={{ marginTop: 12 }}>
+            <b className="yellow">Aumento de habilidades do nível {next}:</b> escolha <b>duas habilidades diferentes</b> para ganhar +1.
+            <div style={{ marginTop: 10 }}><AbilityPairPicker d={d} value={inc} onChange={setInc} /></div>
+          </div>
+        )}
         <div className="row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
           <button className="btn ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn yellow primary" disabled={!chosen || maxed} onClick={() => onConfirm(chosen.cls, gains)}>Rolar PV e subir</button>
+          <button className="btn yellow primary" disabled={!chosen || maxed || (needsInc && inc.length < 2)}
+            title={needsInc && inc.length < 2 ? 'Escolha as duas habilidades' : ''}
+            onClick={() => onConfirm(chosen.cls, gains, needsInc ? inc : [])}>Rolar PV e subir</button>
         </div>
       </div>
     </div>

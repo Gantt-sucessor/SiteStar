@@ -6,7 +6,7 @@ import {
 } from '../data/rules';
 import { derive, getClassLevels } from '../lib/character';
 import { ALL_TREES, REPEATABLE_TALENTS, FORCE_TECHNIQUES, FORCE_SECRETS, ALL_CLASSES, anyClassById } from '../data/prestige';
-import LevelUp from './LevelUp';
+import LevelUp, { AbilityPairPicker } from './LevelUp';
 import DroidShop from './DroidShop';
 import { PortraitHolo } from './Holo';
 import { FeatBrowser, TalentBrowser } from './Browsers';
@@ -77,8 +77,20 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
   const [hpDelta, setHpDelta] = useState('');
   const [levelInfo, setLevelInfo] = useState(null);
   const [levelOpen, setLevelOpen] = useState(false);
-  const [browser, setBrowser] = useState(null); // 'feats' | 'talents'
+  const [browser, setBrowser] = useState(null); // 'feats' | 'talents' | 'abilities'
+  const [incPick, setIncPick] = useState([]);
   const d = useMemo(() => derive(data), [data]);
+  const incLevels = ABILITY_INCREASE_LEVELS.filter((l) => l <= d.level);
+  const incHave = Object.values(data.increases || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+  const incMissing = Math.max(0, incLevels.length * 2 - incHave);
+  const nextIncLevel = incLevels[Math.floor(incHave / 2)] ?? incLevels[incLevels.length - 1];
+  const applyInc = () => {
+    const increases = { ...(data.increases || {}) };
+    for (const a of incPick) increases[a] = (increases[a] || 0) + 1;
+    set({ increases });
+    setIncPick([]);
+    if (incMissing - incPick.length <= 0) setBrowser(null);
+  };
   const character = { id: characterId, name: data.name || 'Sem nome' };
 
   const set = (patch) => onChange({ ...data, ...patch });
@@ -111,7 +123,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
     roll(formula, 'Ponto de Força', 'force-point', 'Some ao teste que você quer melhorar.');
   };
 
-  const levelUp = async (cls, gainsPreview) => {
+  const levelUp = async (cls, gainsPreview, incChoice = []) => {
     setLevelOpen(false);
     const next = d.level + 1;
     if (next > 20) return;
@@ -125,10 +137,12 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
     const classLevels = getClassLevels(data);
     classLevels[cls.id] = (classLevels[cls.id] || 0) + 1;
     const destiny = cls.id === 'discipulo-forca' ? (data.destinyPoints || 0) + 2 : data.destinyPoints;
+    const increases = { ...(data.increases || {}) };
+    for (const a of incChoice) increases[a] = (increases[a] || 0) + 1;
     sfx.saber();
     setLevelInfo({ level: next, gains: [`+${gained} PV`, ...gainsPreview.slice(1)] });
     onChange({
-      ...data, level: next, classLevels, destinyPoints: destiny,
+      ...data, level: next, classLevels, destinyPoints: destiny, increases,
       hp: { ...data.hp, levelRolls, current: (data.hp?.current ?? d.hpMax) + gained },
       forcePoints: null,
     });
@@ -168,6 +182,20 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
 
       {levelOpen && <LevelUp d={d} data={data} onConfirm={levelUp} onClose={() => setLevelOpen(false)} />}
       {browser === 'feats' && <FeatBrowser d={d} data={data} editable={editable} onClose={() => setBrowser(null)} onAdd={(f) => set({ feats: [...(data.feats || []), f] })} />}
+      {browser === 'abilities' && (
+        <div className="modal-back" onClick={(e) => e.target === e.currentTarget && setBrowser(null)}>
+          <div className="modal panel yellow" style={{ width: 'min(640px, 100%)' }}>
+            <div className="panel-title"><span>Aumento de habilidades</span><button className="btn sm ghost" onClick={() => setBrowser(null)}>✕</button></div>
+            <p className="small muted">Nos níveis 4, 8, 12, 16 e 20 você ganha +1 em <b>duas habilidades diferentes</b>. Faltam <b className="yellow">{incMissing}</b> ponto{incMissing > 1 ? 's' : ''}.</p>
+            <div className="kicker" style={{ marginBottom: 6 }}>Aumento do nível {nextIncLevel}</div>
+            <AbilityPairPicker d={d} value={incPick} onChange={setIncPick} />
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
+              <button className="btn ghost" onClick={() => setBrowser(null)}>Depois</button>
+              <button className="btn yellow primary" disabled={incPick.length < Math.min(2, incMissing)} onClick={applyInc}>Aplicar +1</button>
+            </div>
+          </div>
+        </div>
+      )}
       {browser === 'talents' && <TalentBrowser d={d} data={data} editable={editable} onClose={() => setBrowser(null)} onAdd={(t) => set({ talents: [...(data.talents || []), t] })} />}
 
       {editable && d.cls && (() => {
@@ -178,6 +206,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
         const tq = d.techniqueSlots - (data.forceTechniques || []).length;
         const sc = d.secretSlots - (data.forceSecrets || []).length;
         const sk = d.trainedSlots - (data.trainedSkills || []).length;
+        if (incMissing > 0) pend.push(<button key="i" className="btn sm yellow" onClick={() => { setIncPick([]); setBrowser('abilities'); }}>{incMissing} aumento{incMissing > 1 ? 's' : ''} de atributo</button>);
         if (f > 0) pend.push(<button key="f" className="btn sm yellow" onClick={() => setBrowser('feats')}>{f} talento{f > 1 ? 's' : ''}</button>);
         if (t > 0) pend.push(<button key="t" className="btn sm yellow" onClick={() => setBrowser('talents')}>{t} aptidão{t > 1 ? 'ões' : ''}</button>);
         if (pw > 0) pend.push(<button key="p" className="btn sm yellow" onClick={() => setTab('forca')}>{pw} poder{pw > 1 ? 'es' : ''} da Força</button>);
