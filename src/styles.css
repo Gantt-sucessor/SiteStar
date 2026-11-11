@@ -448,7 +448,7 @@ select option { background: var(--panel-solid); }
 @keyframes ignite { from { transform: scaleX(0.05); } to { transform: scaleX(1); } }
 @keyframes pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.85; } }
 .error-box { border: 1px solid rgba(255, 77, 94, 0.5); color: #ffc1c8; background: rgba(255, 31, 61, 0.08); padding: 10px 12px; border-radius: var(--radius); font-size: 0.88rem; }
-.info-box { border: 1px solid rgba(58, 200, 255, 0.4); background: rgba(58, 200, 255, 0.06); padding: 10px 12px; border-radius: var(--radius); font-size: 0.88rem; }
+.info-box { border: 1px solid color-mix(in srgb, var(--saber-blue) 40%, transparent); background: color-mix(in srgb, var(--saber-blue) 6%, transparent); padding: 10px 12px; border-radius: var(--radius); font-size: 0.88rem; }
 .scanlines::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(127, 227, 255, 0.03) 0 1px, transparent 1px 3px); }
 .section-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin: 26px 0 12px; flex-wrap: wrap; }
 .section-head h2 { margin: 0; color: var(--sw-yellow); }
@@ -536,3 +536,21 @@ details.talent summary { cursor: pointer; }
 @keyframes holoSpin { to { transform: rotate(360deg); } }
 .holo-row { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
 .selected-spotlight { border-color: color-mix(in srgb, var(--pc, var(--saber-blue)) 60%, transparent); box-shadow: 0 0 24px color-mix(in srgb, var(--pc, var(--saber-blue)) 18%, transparent); align-items: center; }
+
+/* ---------- Corrupção do Lado Sombrio ---------- */
+body { transition: background-color 1.2s ease; }
+.darkside-active body { background: var(--bg); }
+.darkside-vignette {
+  position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(120, 0, 12, 0.55) 100%);
+  opacity: calc(var(--darkside, 0) * 0.9);
+  transition: opacity 1.2s ease;
+}
+.darkside-deep .darkside-vignette { animation: darksidePulse 5.5s ease-in-out infinite; }
+.darkside-fallen .darkside-vignette { background: radial-gradient(ellipse at 50% 50%, rgba(60, 0, 6, 0.15) 30%, rgba(150, 0, 15, 0.7) 100%); }
+@keyframes darksidePulse { 0%, 100% { opacity: calc(var(--darkside, 0) * 0.75); } 50% { opacity: calc(var(--darkside, 0) * 1); } }
+.darkside-active .nebula { background: radial-gradient(ellipse 70% 50% at 50% 100%, rgba(255, 30, 50, calc(var(--darkside, 0) * 0.16)), transparent 70%), radial-gradient(ellipse 50% 40% at 85% 10%, rgba(120, 0, 20, calc(var(--darkside, 0) * 0.2)), transparent 70%); }
+.darkside-active .holo { --holo-c: 255, 90, 100; }
+.darkside-active .sheet-name, .darkside-active .sheet-name input { text-shadow: 0 0 calc(var(--darkside, 0) * 18px) rgba(255, 40, 60, 0.6); }
+.darkside-meter { margin-top: 6px; height: 4px; border-radius: 3px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.darkside-meter > i { display: block; height: 100%; background: linear-gradient(90deg, #6a0010, var(--sith-red)); box-shadow: 0 0 10px var(--sith-red); transition: width 0.6s ease; }

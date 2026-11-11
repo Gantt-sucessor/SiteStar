@@ -9,6 +9,7 @@ import { ALL_TREES, REPEATABLE_TALENTS, FORCE_TECHNIQUES, FORCE_SECRETS, ALL_CLA
 import LevelUp, { AbilityPairPicker } from './LevelUp';
 import DroidShop from './DroidShop';
 import { PortraitHolo } from './Holo';
+import { useDarkSideTheme, useDarkSideBreathing } from '../lib/darkside';
 import { FeatBrowser, TalentBrowser, PowerBrowser, ForceExtrasBrowser } from './Browsers';
 import { fmtMod, d20Formula } from '../lib/dice';
 import { sendRoll } from '../lib/rolls';
@@ -80,6 +81,10 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
   const [browser, setBrowser] = useState(null); // 'feats' | 'talents' | 'abilities'
   const [incPick, setIncPick] = useState([]);
   const d = useMemo(() => derive(data), [data]);
+  // Corrupção: o site escurece e a respiração aumenta conforme o Lado Sombrio se aproxima da Sabedoria
+  const corruption = !d.droid && d.scores.sab > 0 ? Math.min(1, (data.darkSide || 0) / d.scores.sab) : 0;
+  useDarkSideTheme(corruption, !d.droid);
+  useDarkSideBreathing(corruption, !d.droid);
   const incLevels = ABILITY_INCREASE_LEVELS.filter((l) => l <= d.level);
   const incHave = Object.values(data.increases || {}).reduce((s, v) => s + (Number(v) || 0), 0);
   const incMissing = Math.max(0, incLevels.length * 2 - incHave);
@@ -150,6 +155,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
 
   return (
     <div>
+      {corruption > 0 && <div className="darkside-vignette" aria-hidden="true" />}
       <div className="sheet-head">
         <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', gap: 18 }}>
         <PortraitHolo data={data} set={set} editable={editable} size={120} />
@@ -320,7 +326,10 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
               <>
                 <div className="row between" style={{ marginTop: 12 }}><span className="small">Pontuação do Lado Sombrio</span><span className="mono small red-text">{data.darkSide || 0}/{d.scores.sab}</span></div>
                 <Pips max={Math.max(d.scores.sab, data.darkSide || 0)} value={data.darkSide || 0} variant="dark" onChange={editable ? (v) => set({ darkSide: v }) : null} />
-                {(data.darkSide || 0) >= d.scores.sab && d.scores.sab > 0 && <div className="tiny red-text" style={{ marginTop: 6 }}>Consumido pelo lado sombrio.</div>}
+                <div className="darkside-meter"><i style={{ width: `${Math.round(corruption * 100)}%` }} /></div>
+                <div className="tiny" style={{ marginTop: 4, color: corruption >= 1 ? 'var(--sith-red)' : 'var(--muted)' }}>
+                  {corruption >= 1 ? 'Consumido pelo lado sombrio.' : corruption >= 0.75 ? 'A escuridão está quase completa...' : corruption >= 0.4 ? 'Você sente o ódio crescer.' : corruption > 0 ? 'Uma sombra tocou você.' : 'Em equilíbrio com a Força.'}
+                </div>
               </>
             )}
           </Panel>
