@@ -141,7 +141,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
     levelRolls.push(gained);
     const classLevels = getClassLevels(data);
     classLevels[cls.id] = (classLevels[cls.id] || 0) + 1;
-    const destiny = cls.id === 'discipulo-forca' ? (data.destinyPoints || 0) + 2 : data.destinyPoints;
+    const destiny = (data.destinyPoints || 0) + (cls.id === 'discipulo-forca' ? 2 : 1);
     const increases = { ...(data.increases || {}) };
     for (const a of incChoice) increases[a] = (increases[a] || 0) + 1;
     sfx.saber();
@@ -298,6 +298,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
                 <button className="btn sm" onClick={spendForcePoint} disabled={d.fpCurrent <= 0}>Gastar PF ({d.fpDice > 1 ? `${d.fpDice}${d.forceDie}, maior` : `1${d.forceDie}`})</button>
               </div>
             )}
+            <DestinyBlock data={data} set={set} editable={editable} d={d} roll={roll} />
             <div className="row between" style={{ marginTop: 12 }}><span className="small">Pontos de Destino</span><span className="mono small">{data.destinyPoints || 0}</span></div>
             <Pips max={Math.max(3, data.destinyPoints || 0)} value={data.destinyPoints || 0} variant="gold" onChange={editable ? (v) => set({ destinyPoints: v }) : null} />
             {d.droid ? (() => {
@@ -979,6 +980,74 @@ function ClassEditor({ d, data, set }) {
         </select>
         <button className="btn sm" disabled={!add} onClick={() => { update({ ...levels, [add]: 1 }); setAdd(''); }}>Adicionar</button>
       </div>
+    </div>
+  );
+}
+
+// Destino do personagem (Cap. 7, regra opcional) e uso dos Pontos de Destino
+const DESTINIES = {
+  '': ['Sem destino definido', '', ''],
+  corrupcao: ['Corrupção', '24h: você e aliados a 10 quadrados +1 em perícias e testes de habilidade (afastar-se: -2 por 24h)', '+1 em duas habilidades; o Lado Sombrio sobe até a Sabedoria'],
+  descoberta: ['Descoberta', '24h: você e aliados a 10 quadrados +1 em todas as defesas (afastar-se: -1 nas defesas por 24h)', '+1 permanente em todas as defesas'],
+  destruicao: ['Destruição', '24h: você e aliados a 10 quadrados +2 em todas as rolagens de dano (afastar-se: -2 no dano por 24h)', '+2 em uma habilidade'],
+  educacao: ['Educação', '24h: você e aliados a 10 quadrados +1 em perícias e testes de habilidade (afastar-se: -2 por 24h)', '+5 permanente numa perícia de classe'],
+  redencao: ['Redenção', 'Você recebe 1 Ponto de Força (afastar-se: perde 1 PF)', 'O redimido fica com Lado Sombrio 1; você ganha 3 + os PF que ele perdeu'],
+  resgate: ['Resgate', '24h: você e aliados a 10 quadrados +1 em todos os ataques (afastar-se: -2 nos ataques por 24h)', '+1 em duas habilidades'],
+  secreto: ['Secreto (o mestre sabe)', 'o mestre avisa quando acontecer', 'o mestre revela'],
+};
+
+const DESTINY_USES = [
+  ['crit', 'Acerto crítico automático', 'Um ataque seu acerta como crítico, sem rolar.'],
+  ['miss', 'Fazer um ataque contra você falhar', 'Mesmo depois do ataque já resolvido.'],
+  ['turn', 'Agir fora do seu turno', 'Muda sua posição na iniciativa.'],
+  ['shield', 'Receber o dano no lugar de um aliado', 'Aliado ao alcance do seu ataque.'],
+  ['force', 'Ganhar 3 Pontos de Força na hora', 'Somados automaticamente.'],
+  ['power', 'Potencializar um poder ou Segredo da Força', 'Conforme a descrição do poder ou segredo.'],
+];
+
+function DestinyBlock({ data, set, editable, d }) {
+  const [open, setOpen] = useState(false);
+  const dest = data.destiny || { type: '', text: '' };
+  const info = DESTINIES[dest.type] || DESTINIES[''];
+  const pts = data.destinyPoints || 0;
+  const spend = (id, label) => {
+    if (pts <= 0) return;
+    const patch = { destinyPoints: pts - 1 };
+    if (id === 'force') patch.forcePoints = d.fpCurrent + 3;
+    set(patch);
+    setOpen(false);
+    window.dispatchEvent(new CustomEvent('holocron:roll', { detail: { id: `dest-${Date.now()}`, label: `Ponto de Destino: ${label}`, total: '★', formula: '', result: { parts: [] }, character_name: data.name } }));
+  };
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div className="row between"><span className="small">Destino</span><span className="tiny yellow">{info[0]}</span></div>
+      {editable ? (
+        <div className="stack" style={{ gap: 4, marginTop: 4 }}>
+          <select value={dest.type} onChange={(e) => set({ destiny: { ...dest, type: e.target.value } })} style={{ padding: '4px 6px', fontSize: '0.82rem' }}>
+            {Object.entries(DESTINIES).map(([k, v]) => <option key={k} value={k}>{v[0]}</option>)}
+          </select>
+          {dest.type && <input value={dest.text || ''} placeholder="Ex.: descobrir quem acordou o lado sombrio" onChange={(e) => set({ destiny: { ...dest, text: e.target.value } })} style={{ padding: '4px 8px', fontSize: '0.82rem' }} />}
+        </div>
+      ) : dest.text ? <div className="tiny muted">{dest.text}</div> : null}
+      {dest.type && dest.type !== 'secreto' && (
+        <div className="tiny muted" style={{ marginTop: 4 }}><b>Ao avançar:</b> {info[1]}.<br /><b>Ao cumprir:</b> {info[2]}.</div>
+      )}
+      {editable && (
+        <div style={{ marginTop: 6 }}>
+          <button className="btn sm yellow" disabled={pts <= 0 || !dest.type} title={!dest.type ? 'Só personagens com um destino gastam Pontos de Destino' : ''} onClick={() => setOpen((o) => !o)}>Gastar Ponto de Destino</button>
+          {!dest.type && <div className="tiny dim" style={{ marginTop: 4 }}>Pelo livro, só quem tem um destino pode gastar Pontos de Destino.</div>}
+          {open && (
+            <div className="list" style={{ marginTop: 6 }}>
+              {DESTINY_USES.map(([id, label, hint]) => (
+                <button key={id} className="list-row" style={{ background: 'none', border: 0, borderBottom: '1px solid var(--line)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', font: 'inherit' }} onClick={() => spend(id, label)}>
+                  <div><div className="name small">{label}</div><div className="sub">{hint}</div></div>
+                  <span className="tag yellow">−1</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
