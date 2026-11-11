@@ -163,7 +163,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
           </div>
           <div className="row" style={{ marginTop: 6, gap: 6 }}>
             {d.forceSensitive && <span className="tag blue">Sensitivo à Força</span>}
-            {data.darkSide > 0 && <span className="tag red">Lado Sombrio {data.darkSide}</span>}
+            {!d.droid && data.darkSide > 0 && <span className="tag red">Lado Sombrio {data.darkSide}</span>}
             {d.armor && <span className="tag">{d.armor.name}{!d.armorProficient && ' (não proficiente)'}</span>}
             <span className="tag yellow">{(data.credits || 0).toLocaleString('pt-BR')} créditos</span>
           </div>
@@ -284,7 +284,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             )}
           </Panel>
 
-          <Panel title="Força & Destino">
+          <Panel title={d.droid ? 'Destino & Memória' : 'Força & Destino'}>
             <div className="row between"><span className="small">Pontos de Força</span><span className="mono small">{d.fpCurrent}/{d.fpMax}</span></div>
             <Pips max={d.fpMax} value={d.fpCurrent} onChange={editable ? (v) => set({ forcePoints: v }) : null} />
             {editable && (
@@ -294,9 +294,35 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             )}
             <div className="row between" style={{ marginTop: 12 }}><span className="small">Pontos de Destino</span><span className="mono small">{data.destinyPoints || 0}</span></div>
             <Pips max={Math.max(3, data.destinyPoints || 0)} value={data.destinyPoints || 0} variant="gold" onChange={editable ? (v) => set({ destinyPoints: v }) : null} />
-            <div className="row between" style={{ marginTop: 12 }}><span className="small">Pontuação do Lado Sombrio</span><span className="mono small red-text">{data.darkSide || 0}/{d.scores.sab}</span></div>
-            <Pips max={Math.max(d.scores.sab, data.darkSide || 0)} value={data.darkSide || 0} variant="dark" onChange={editable ? (v) => set({ darkSide: v }) : null} />
-            {(data.darkSide || 0) >= d.scores.sab && d.scores.sab > 0 && <div className="tiny red-text" style={{ marginTop: 6 }}>Consumido pelo lado sombrio.</div>}
+            {d.droid ? (() => {
+              const mem = data.memoryIntegrity ?? 10;
+              const rep = data.guildRep ?? 0;
+              const repLabel = rep <= -4 ? 'Infame' : rep <= -2 ? 'Duvidosa' : rep <= 1 ? 'Neutra' : rep <= 3 ? 'Confiável' : 'Lendária';
+              return (
+                <>
+                  <div className="row between" style={{ marginTop: 12 }}><span className="small">Integridade da memória</span><span className="mono small" style={{ color: 'var(--holo)' }}>{mem}/10</span></div>
+                  <Pips max={10} value={mem} onChange={editable ? (v) => set({ memoryIntegrity: v }) : null} />
+                  <div className="tiny muted" style={{ marginTop: 4 }}>{mem >= 10 ? 'Memória intacta.' : mem <= 0 ? 'Memória apagada: modelo de fábrica.' : 'Lembranças corrompidas ou apagadas. Cada lavagem leva um nível de classe por minuto.'}</div>
+                  <div className="row between" style={{ marginTop: 12 }}>
+                    <span className="small">Reputação na Guilda</span>
+                    <span className={`mono small ${rep < 0 ? 'red-text' : rep > 1 ? 'green-text' : 'yellow'}`}>{rep > 0 ? '+' : ''}{rep} · {repLabel}</span>
+                  </div>
+                  {editable && (
+                    <div className="row" style={{ marginTop: 4, gap: 4 }}>
+                      <button className="btn sm pm" onClick={() => set({ guildRep: Math.max(-5, rep - 1) })}>−</button>
+                      <input type="range" min="-5" max="5" value={rep} onChange={(e) => set({ guildRep: Number(e.target.value) })} style={{ flex: 1, padding: 0 }} />
+                      <button className="btn sm pm" onClick={() => set({ guildRep: Math.min(5, rep + 1) })}>+</button>
+                    </div>
+                  )}
+                </>
+              );
+            })() : (
+              <>
+                <div className="row between" style={{ marginTop: 12 }}><span className="small">Pontuação do Lado Sombrio</span><span className="mono small red-text">{data.darkSide || 0}/{d.scores.sab}</span></div>
+                <Pips max={Math.max(d.scores.sab, data.darkSide || 0)} value={data.darkSide || 0} variant="dark" onChange={editable ? (v) => set({ darkSide: v }) : null} />
+                {(data.darkSide || 0) >= d.scores.sab && d.scores.sab > 0 && <div className="tiny red-text" style={{ marginTop: 6 }}>Consumido pelo lado sombrio.</div>}
+              </>
+            )}
           </Panel>
 
           <Panel title="Habilidades">

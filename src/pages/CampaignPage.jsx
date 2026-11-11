@@ -18,6 +18,7 @@ import { sendRoll } from '../lib/rolls';
 import Holo from '../components/Holo';
 import { VehicleCard, VehiclePicker } from '../components/Vehicles';
 import { deriveVehicle } from '../lib/vehicles';
+import { ADVENTURES } from '../data/adventures';
 import { d20Formula } from '../lib/dice';
 
 function useCampaign(id) {
@@ -464,7 +465,8 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
       )}
 
       {tab === 'ameacas' && (
-        <NpcLibrary api={npcApi} campaignId={campaign.id} secret={npcSecret} selected={openNpc} onSelect={setOpenNpc} onPicker={setPicker} />
+        <NpcLibrary api={npcApi} campaignId={campaign.id} secret={npcSecret} selected={openNpc} onSelect={setOpenNpc} onPicker={setPicker}
+          onImportCrawl={(crawl) => saveCampaign({ crawl })} />
       )}
 
       {picker === 'livro' && <BestiaryPicker onAdd={addNpcs} onClose={() => setPicker(null)} />}
@@ -689,7 +691,41 @@ function CampaignConfig({ campaign, members, profiles, onSave }) {
   );
 }
 
-function NpcLibrary({ api, campaignId, secret, selected, onSelect, onPicker }) {
+function AdventureImport({ api, onImportCrawl, onClose }) {
+  const [useCrawl, setUseCrawl] = useState(true);
+  const [busy, setBusy] = useState('');
+  const [done, setDone] = useState('');
+  const run = async (adv) => {
+    setBusy(adv.id);
+    const rows = await api.add(adv.build(), false);
+    if (useCrawl && adv.crawl) await onImportCrawl(adv.crawl);
+    setBusy('');
+    setDone(`${rows.length} NPCs de "${adv.title}" adicionados à biblioteca${useCrawl ? ' e a abertura foi atualizada' : ''}.`);
+  };
+  return (
+    <div className="modal-back" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal panel yellow" style={{ width: 'min(820px, 100%)' }}>
+        <div className="panel-title"><span>Aventuras prontas</span><button className="btn sm ghost" onClick={onClose}>✕</button></div>
+        {ADVENTURES.map((adv) => (
+          <div key={adv.id} className="info-box" style={{ marginBottom: 12 }}>
+            <div className="row between"><b className="yellow">{adv.title}</b><span className="tag">{adv.level}</span></div>
+            <p className="small" style={{ margin: '6px 0' }}>{adv.summary}</p>
+            <ul className="small muted" style={{ margin: '0 0 8px 18px', padding: 0 }}>{adv.scenes.map((sc) => <li key={sc}>{sc}</li>)}</ul>
+            <div className="tiny muted" style={{ marginBottom: 8 }}>NPCs: {adv.build().map((n) => n.name).join(', ')}.</div>
+            <div className="row between">
+              <label className="check small"><input type="checkbox" checked={useCrawl} onChange={(e) => setUseCrawl(e.target.checked)} /> Usar também o texto de abertura desta aventura</label>
+              <button className="btn yellow primary" disabled={Boolean(busy)} onClick={() => run(adv)}>{busy === adv.id ? 'Importando...' : 'Importar'}</button>
+            </div>
+          </div>
+        ))}
+        {done && <div className="info-box small green-text">{done} Os NPCs ficam fora de cena; marque "Em cena" quando entrarem na história.</div>}
+      </div>
+    </div>
+  );
+}
+
+function NpcLibrary({ api, campaignId, secret, selected, onSelect, onPicker, onImportCrawl }) {
+  const [importOpen, setImportOpen] = useState(false);
   const [q, setQ] = useState('');
   const list = (api.npcs || []).filter((x) => x.data.kind !== 'vehicle' && (!q || x.data.name.toLowerCase().includes(q.toLowerCase())));
   const current = (api.npcs || []).find((x) => x.id === selected && x.data.kind !== 'vehicle') || list[0];
@@ -706,6 +742,8 @@ function NpcLibrary({ api, campaignId, secret, selected, onSelect, onPicker }) {
         <div className="stack" style={{ marginBottom: 10 }}>
           <button className="btn red primary" onClick={() => onPicker('livro')}>+ Ficha pronta do livro</button>
           <button className="btn red" onClick={() => onPicker('gerador')}>+ Criar NPC (gerador / em branco)</button>
+          <button className="btn yellow" onClick={() => setImportOpen(true)}>Importar aventura pronta</button>
+          {importOpen && <AdventureImport api={api} onImportCrawl={onImportCrawl} onClose={() => setImportOpen(false)} />}
           <input placeholder="Buscar..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {api.npcs === null ? <div className="loader" style={{ minHeight: 80 }}><div className="saber" /></div> : list.length === 0 ? (
