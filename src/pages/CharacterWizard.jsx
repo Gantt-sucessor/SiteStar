@@ -59,15 +59,17 @@ export function CharacterWizard({ initial }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [step, setStep] = useState(0);
+  // Rascunho salvo no navegador, separado por conta (contas diferentes no mesmo navegador não se misturam)
+  const DRAFT_KEY = `holocron:draft:${user?.id ?? 'anon'}`;
   const [restored] = useState(() => {
     if (editing) return false;
-    try { const dr = JSON.parse(localStorage.getItem('holocron:draft') || 'null'); return Boolean(dr && (dr.name || dr.species || dr.classId)); } catch { return false; }
+    try { const dr = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); return Boolean(dr && (dr.name || dr.species || dr.classId)); } catch { return false; }
   });
   const [showRestored, setShowRestored] = useState(true);
   const [data, setData] = useState(() => {
     if (editing) return { ...newCharacter(), ...initial.data, abilityMethod: 'manual' };
     try {
-      const draft = JSON.parse(localStorage.getItem('holocron:draft') || 'null');
+      const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
       if (draft) return draft;
     } catch { /* sem rascunho */ }
     return { ...newCharacter(), player: profile?.display_name || '' };
@@ -81,7 +83,7 @@ export function CharacterWizard({ initial }) {
 
   useEffect(() => {
     if (editing) return;
-    try { localStorage.setItem('holocron:draft', JSON.stringify(data)); } catch { /* cheio */ }
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch { /* cheio */ }
   }, [data]);
 
   useEffect(() => {
@@ -115,7 +117,7 @@ export function CharacterWizard({ initial }) {
       delete final.methodSaves;
       delete final.droidBudget; // sobras do orçamento de dróide se perdem
       const row = await saveCharacter({ id: initial?.id, data: final, campaign_id: campaignId || null });
-      if (!editing) localStorage.removeItem('holocron:draft');
+      if (!editing) localStorage.removeItem(DRAFT_KEY);
       sfx.saber();
       hyperspace();
       navigate(`/personagem/${row.id}`);
@@ -132,7 +134,7 @@ export function CharacterWizard({ initial }) {
       return;
     }
     if (!confirm('Descartar este rascunho e começar do zero?')) return;
-    localStorage.removeItem('holocron:draft');
+    localStorage.removeItem(DRAFT_KEY);
     setData({ ...newCharacter(), player: profile?.display_name || '' });
     go(0);
   };
@@ -157,7 +159,7 @@ export function CharacterWizard({ initial }) {
           </span>
           <div className="row">
             <button className="btn sm" onClick={() => setShowRestored(false)}>Continuar</button>
-            <button className="btn sm yellow" onClick={() => { localStorage.removeItem('holocron:draft'); setData({ ...newCharacter(), player: profile?.display_name || '' }); setShowRestored(false); go(0); }}>Começar do zero</button>
+            <button className="btn sm yellow" onClick={() => { localStorage.removeItem(DRAFT_KEY); setData({ ...newCharacter(), player: profile?.display_name || '' }); setShowRestored(false); go(0); }}>Começar do zero</button>
           </div>
         </div>
       )}

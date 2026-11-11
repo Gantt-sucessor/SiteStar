@@ -47,5 +47,6 @@ export function signIn(provider) {
 
 export function signOut() {
   sessionStorage.removeItem('holocron:intro-seen');
+  try { localStorage.removeItem('holocron:draft'); } catch { /* rascunho antigo, sem dono */ }
   return supabase.auth.signOut();
 }
