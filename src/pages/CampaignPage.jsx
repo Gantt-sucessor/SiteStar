@@ -20,7 +20,7 @@ import { VehicleCard, VehiclePicker } from '../components/Vehicles';
 import { deriveVehicle } from '../lib/vehicles';
 import { ADVENTURES } from '../data/adventures';
 import { d20Formula } from '../lib/dice';
-import { useTableChannel } from '../lib/table';
+import { useTableChannel, useTableStatus } from '../lib/table';
 import Galaxy from '../components/Galaxy';
 import ContractBoard from '../components/Contracts';
 import { CodexEditor, CodexReader } from '../components/Codex';
@@ -147,6 +147,7 @@ function PlayerView({ camp, user, onCrawl, send }) {
   return (
     <div className="page">
       <CampaignHeader campaign={campaign} profiles={profiles}>
+        <TableStatus campaignId={campaign.id} />
         <button className="btn sm yellow" onClick={onCrawl}>▶ Abertura</button>
         <button className="btn sm ghost red" onClick={leave}>Sair</button>
       </CampaignHeader>
@@ -364,6 +365,7 @@ function MasterView({ camp, user, onCrawl, send }) {
 
       <div className="comms-bar">
         <span className="kicker">Comunicações</span>
+        <TableStatus campaignId={campaign.id} />
         <button className="btn sm" onClick={() => setTransOpen(true)}>📡 Transmissão holográfica</button>
         <button className="btn sm red" onClick={() => send('alert', { text: 'ALERTA VERMELHO' })}>🚨 Alerta!</button>
         <button className="btn sm yellow" onClick={() => send('jump', {})}>⟫ Salto para o hiperespaço</button>
@@ -904,5 +906,16 @@ function TransmissionConsole({ onClose, send, members, profiles, characters, npc
         {err && <div className="tiny red-text">{err}</div>}
       </div>
     </div>
+  );
+}
+
+function TableStatus({ campaignId }) {
+  const status = useTableStatus(campaignId);
+  const ok = status === 'SUBSCRIBED';
+  const bad = status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED';
+  return (
+    <span className={`tag ${ok ? 'green' : bad ? 'red' : 'yellow'}`} title={`Canal da mesa: ${status}`}>
+      {ok ? '● canal conectado' : bad ? `● canal com erro (${status})` : '● conectando...'}
+    </span>
   );
 }

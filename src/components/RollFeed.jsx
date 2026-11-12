@@ -16,10 +16,11 @@ export default function RollFeed({ campaignId, userId, profiles = {}, toastOther
   useEffect(() => {
     if (!campaignId) return;
     let alive = true;
-    supabase.from('rolls').select('*').eq('campaign_id', campaignId).order('created_at', { ascending: false }).limit(60)
+    supabase.from('rolls').select('*').eq('campaign_id', campaignId).or('kind.is.null,kind.neq.fx').order('created_at', { ascending: false }).limit(60)
       .then(({ data }) => alive && setRolls(data || []));
     const ch = supabase.channel(`rolls-${campaignId}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rolls', filter: `campaign_id=eq.${campaignId}` }, ({ new: r }) => {
+        if (r.kind === 'fx') return; // efeitos da mesa (transmissões etc.) não são rolagens
         setRolls((list) => (list.some((x) => x.id === r.id) ? list : [r, ...list].slice(0, 120)));
         onRollRef.current?.(r);
         if (toastOthers && r.user_id !== userId) {

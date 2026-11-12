@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { listMyCampaigns } from './data';
 
@@ -9,12 +9,17 @@ import { listMyCampaigns } from './data';
 export const emitFx = (type, payload = {}) =>
   window.dispatchEvent(new CustomEvent('holocron:fx', { detail: { type, payload } }));
 
-const channels = new Map(); // campaignId -> { ch, users }
+const channels = new Map(); // campaignId -> { ch, users, status }
 let currentUser = null;
+const seen = new Set(); // cada efeito chega por dois caminhos (broadcast e banco); mostra só uma vez
 
 function receive(campaignId, payload) {
   const { type, data } = payload || {};
   if (!type) return;
+  if (data?.fxId) {
+    if (seen.has(data.fxId)) return;
+    seen.add(data.fxId);
+  }
   if (data?.to && data.to !== 'all' && data.to !== currentUser) return; // mensagem privada para outro jogador
   if (type === 'crawl') window.dispatchEvent(new CustomEvent('holocron:crawl', { detail: { campaignId, crawl: data?.crawl || null } }));
   else emitFx(type, { ...data, campaignId });
@@ -23,10 +28,19 @@ function receive(campaignId, payload) {
 function acquire(campaignId) {
   let entry = channels.get(campaignId);
   if (!entry) {
-    const ch = supabase.channel(`mesa-${campaignId}`, { config: { broadcast: { self: false } } })
+    const e = { ch: null, users: 0, status: 'CONNECTING' };
+    e.ch = supabase.channel(`mesa-${campaignId}`, { config: { broadcast: { self: false } } })
       .on('broadcast', { event: 'fx' }, ({ payload }) => receive(campaignId, payload))
-      .subscribe();
-    entry = { ch, users: 0 };
+      // caminho reserva: o mesmo efeito gravado como "rolagem" do tipo fx (o realtime das rolagens já funciona para todos)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rolls', filter: `campaign_id=eq.${campaignId}` }, ({ new: r }) => {
+        if (r.kind === 'fx' && r.user_id !== currentUser) receive(campaignId, r.result?.fx);
+      })
+      .subscribe((status, err) => {
+        e.status = status;
+        if (err) console.warn('Canal da mesa', status, err);
+        window.dispatchEvent(new CustomEvent('holocron:mesa-status', { detail: { campaignId, status } }));
+      });
+    entry = e;
     channels.set(campaignId, entry);
   }
   entry.users += 1;
@@ -54,9 +68,15 @@ export function useAllTableChannels(userId, pathname) {
   useEffect(() => () => { for (const release of held.current.values()) release(); held.current.clear(); }, [userId]);
 }
 
-export function sendTable(campaignId, type, data = {}, { local = true } = {}) {
+export function sendTable(campaignId, type, rawData = {}, { local = true } = {}) {
+  const data = { ...rawData, fxId: crypto.randomUUID() };
+  seen.add(data.fxId);
   const entry = channels.get(campaignId);
-  entry?.ch.send({ type: 'broadcast', event: 'fx', payload: { type, data } });
+  const payload = { type, data };
+  if (entry) entry.ch.send({ type: 'broadcast', event: 'fx', payload });
+  else supabase.channel(`mesa-${campaignId}`).send({ type: 'broadcast', event: 'fx', payload });
+  supabase.from('rolls').insert({ campaign_id: campaignId, label: type, formula: 'fx', kind: 'fx', result: { fx: payload }, total: 0 })
+    .then(({ error }) => { if (error) console.warn('Falha ao gravar efeito da mesa', error.message); });
   if (!local) return;
   if (type === 'crawl') window.dispatchEvent(new CustomEvent('holocron:crawl', { detail: { campaignId, crawl: data.crawl || null } }));
   else emitFx(type, { ...data, campaignId, echo: true });
@@ -82,6 +102,18 @@ export function useTableChannel(campaignId, userId, onCrawl) {
     };
   }, [campaignId, userId]);
   return (type, data = {}, opts) => sendTable(campaignId, type, data, opts);
+}
+
+// Estado da conexão do canal da mesa (para o indicador na tela)
+export function useTableStatus(campaignId) {
+  const [status, setStatus] = useState(() => channels.get(campaignId)?.status || 'CONNECTING');
+  useEffect(() => {
+    setStatus(channels.get(campaignId)?.status || 'CONNECTING');
+    const on = (e) => { if (e.detail.campaignId === campaignId) setStatus(e.detail.status); };
+    window.addEventListener('holocron:mesa-status', on);
+    return () => window.removeEventListener('holocron:mesa-status', on);
+  }, [campaignId]);
+  return status;
 }
 
 // Pede para a página da campanha transmitir um efeito para a mesa
