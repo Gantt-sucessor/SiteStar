@@ -912,6 +912,9 @@ function TransmissionConsole({ onClose, send, members, profiles, characters, npc
 function TableStatus({ campaignId }) {
   const { status, error } = useTableStatus(campaignId);
   const ok = status === 'SUBSCRIBED';
+  if (status === 'POLLING') {
+    return <span className="tag yellow" title={`Tempo real indisponível (${error || 'sem detalhe'}). Os efeitos chegam consultando o banco a cada 3 segundos.`}>● modo reserva (3 s)</span>;
+  }
   const bad = status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED';
   return (
     <span className={`tag ${ok ? 'green' : bad ? 'red' : 'yellow'}`} title={`Canal da mesa: ${status}${error ? ` · ${error}` : ''}`}>

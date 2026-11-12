@@ -28,10 +28,10 @@ function receive(campaignId, payload) {
 function acquire(campaignId) {
   let entry = channels.get(campaignId);
   if (!entry) {
-    const e = { ch: null, db: null, users: 0, status: 'CONNECTING', bc: 'CONNECTING', pg: 'CONNECTING', error: '' };
+    const e = { ch: null, db: null, users: 0, status: 'CONNECTING', bc: 'CONNECTING', pg: 'CONNECTING', error: '', lastId: null, timer: null };
     const update = () => {
-      // basta um dos dois caminhos estar de pé para os efeitos chegarem
-      e.status = e.pg === 'SUBSCRIBED' || e.bc === 'SUBSCRIBED' ? 'SUBSCRIBED' : e.pg === 'CONNECTING' || e.bc === 'CONNECTING' ? 'CONNECTING' : e.pg;
+      // basta um dos dois caminhos estar de pé para os efeitos chegarem; sem tempo real, consulta o banco
+      e.status = e.pg === 'SUBSCRIBED' || e.bc === 'SUBSCRIBED' ? 'SUBSCRIBED' : e.pg === 'CONNECTING' || e.bc === 'CONNECTING' ? 'CONNECTING' : 'POLLING';
       window.dispatchEvent(new CustomEvent('holocron:mesa-status', { detail: { campaignId, status: e.status, error: e.error } }));
     };
     e.ch = supabase.channel(`mesa-${campaignId}`, { config: { broadcast: { self: false } } })
@@ -52,13 +52,28 @@ function acquire(campaignId) {
         if (err) { e.error = err.message || String(err); console.warn('Canal da mesa (banco)', status, err); }
         update();
       });
+    // reserva sem tempo real: a cada 3 s busca efeitos novos no banco (só enquanto o canal do banco não conecta)
+    const poll = async () => {
+      if (e.pg === 'SUBSCRIBED') return;
+      let q = supabase.from('rolls').select('id, user_id, result').eq('campaign_id', campaignId).eq('kind', 'fx');
+      q = e.lastId == null ? q.order('id', { ascending: false }).limit(1) : q.gt('id', e.lastId).order('id', { ascending: true }).limit(20);
+      const { data } = await q;
+      if (!data?.length) { if (e.lastId == null) e.lastId = 0; return; }
+      const first = e.lastId == null;
+      for (const r of data) {
+        e.lastId = Math.max(e.lastId || 0, r.id);
+        if (!first && r.user_id !== currentUser) receive(campaignId, r.result?.fx);
+      }
+    };
+    poll();
+    e.timer = setInterval(poll, 3000);
     entry = e;
     channels.set(campaignId, entry);
   }
   entry.users += 1;
   return () => {
     entry.users -= 1;
-    if (entry.users <= 0) { supabase.removeChannel(entry.ch); supabase.removeChannel(entry.db); channels.delete(campaignId); }
+    if (entry.users <= 0) { clearInterval(entry.timer); supabase.removeChannel(entry.ch); supabase.removeChannel(entry.db); channels.delete(campaignId); }
   };
 }
 
