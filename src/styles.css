@@ -554,3 +554,150 @@ body { transition: background-color 1.2s ease; }
 .darkside-active .sheet-name, .darkside-active .sheet-name input { text-shadow: 0 0 calc(var(--darkside, 0) * 18px) rgba(255, 40, 60, 0.6); }
 .darkside-meter { margin-top: 6px; height: 4px; border-radius: 3px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
 .darkside-meter > i { display: block; height: 100%; background: linear-gradient(90deg, #6a0010, var(--sith-red)); box-shadow: 0 0 10px var(--sith-red); transition: width 0.6s ease; }
+
+/* ======================= Imersão da mesa ======================= */
+.comms-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); }
+.comms-bar .kicker { margin-right: 4px; }
+.list-button { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.list-button.active { background: rgba(58, 200, 255, 0.08); }
+
+/* Alerta vermelho */
+.fx-alert { position: fixed; inset: 0; z-index: 95; pointer-events: none; display: grid; place-items: center; animation: fxAlert 0.8s ease-in-out 4; box-shadow: inset 0 0 160px 40px rgba(255, 20, 40, 0.75); background: rgba(255, 0, 30, 0.12); }
+.fx-alert-text { font-family: var(--font-head); font-size: clamp(1.6rem, 6vw, 3.6rem); letter-spacing: 0.25em; color: #ff3348; text-shadow: 0 0 18px #ff0022, 0 0 40px #ff0022; border: 3px solid #ff3348; padding: 10px 26px; background: rgba(20, 0, 4, 0.6); text-align: center; }
+@keyframes fxAlert { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+/* Hiperespaço */
+.fx-warp { position: fixed; inset: 0; z-index: 94; pointer-events: none; display: grid; place-items: center; overflow: hidden; }
+.fx-warp.jump { background: radial-gradient(circle, transparent 30%, rgba(0, 10, 30, 0.5)); }
+.fx-warp.exit { animation: fxExit 3.2s ease-out forwards; background: radial-gradient(circle, rgba(220, 245, 255, 0.95), rgba(58, 200, 255, 0.25) 40%, transparent 75%); }
+@keyframes fxExit { 0% { opacity: 1; } 25% { opacity: 0.85; } 100% { opacity: 0; } }
+.fx-tunnel { position: absolute; inset: -50%; background:
+  repeating-conic-gradient(from 0deg, rgba(180, 230, 255, 0) 0deg 3deg, rgba(180, 230, 255, 0.55) 3.4deg, rgba(180, 230, 255, 0) 4deg 7deg),
+  radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 3%, rgba(90, 180, 255, 0.5) 8%, rgba(10, 30, 80, 0.85) 40%, #000 70%);
+  animation: fxTunnel 0.9s linear infinite, fxTunnelIn 4.3s ease-in-out forwards; }
+@keyframes fxTunnel { from { transform: rotate(0deg) scale(1); } to { transform: rotate(8deg) scale(1.04); } }
+@keyframes fxTunnelIn { 0% { opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+.fx-warp-label { position: relative; text-align: center; padding: 14px 22px; margin: 0 16px; background: rgba(0, 6, 18, 0.65); border: 1px solid var(--line-strong); border-radius: var(--radius); }
+.fx-warp-dest { font-family: var(--font-head); font-size: clamp(1.1rem, 3.5vw, 1.8rem); color: var(--sw-yellow); letter-spacing: 0.08em; }
+.fx-warp.exit .fx-warp-label { color: #001; background: rgba(255, 255, 255, 0.35); }
+
+/* Medalha */
+.fx-medal { position: fixed; inset: 0; z-index: 96; display: grid; place-items: center; background: radial-gradient(circle, rgba(60, 40, 0, 0.55), rgba(0, 0, 0, 0.85) 70%); animation: fxFadeIn 0.6s ease; cursor: pointer; padding: 16px; }
+.fx-medal-inner { text-align: center; }
+.fx-medal-badge { display: inline-block; animation: fxMedal 1.2s cubic-bezier(.2, .9, .3, 1.2); filter: drop-shadow(0 0 22px rgba(255, 210, 90, 0.8)); }
+@keyframes fxMedal { from { transform: translateY(-60px) scale(0.3) rotate(-25deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fxFadeIn { from { opacity: 0; } to { opacity: 1; } }
+.medal-badge { display: block; filter: drop-shadow(0 0 6px rgba(255, 210, 90, 0.45)); }
+.medal-strip { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.medal-strip .medal-badge { animation: holoFlicker 6s infinite; }
+.medal-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.medal-item { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 76px; }
+@keyframes holoFlicker { 0%, 92%, 100% { opacity: 1; } 93% { opacity: 0.55; } 95% { opacity: 0.9; } 96% { opacity: 0.6; } }
+
+/* Avisos (holocron / HoloNet) */
+.fx-notes { position: fixed; top: 74px; right: 18px; z-index: 61; display: flex; flex-direction: column; gap: 8px; width: min(320px, calc(100vw - 36px)); pointer-events: none; }
+.fx-note { padding: 10px 12px; border: 1px solid var(--line-strong); border-left: 3px solid var(--sw-yellow); border-radius: var(--radius); background: var(--panel-solid); animation: fxFadeIn 0.4s ease; box-shadow: 0 0 18px rgba(58, 200, 255, 0.15); }
+
+/* Transmissão holográfica */
+.fx-transmission { --holo-c: 120, 220, 255; position: fixed; left: 50%; top: 84px; transform: translateX(-50%); z-index: 92; width: min(560px, calc(100vw - 32px)); padding: 12px 14px; border: 1px solid rgba(var(--holo-c), 0.6); border-radius: var(--radius); background: linear-gradient(180deg, rgba(4, 22, 40, 0.94), rgba(2, 10, 22, 0.96)); box-shadow: 0 0 30px rgba(var(--holo-c), 0.25), inset 0 0 30px rgba(var(--holo-c), 0.08); animation: transIn 0.7s steps(6, end), holoFlicker 5s 1s infinite; }
+.fx-transmission.red { --holo-c: 255, 90, 100; }
+.fx-transmission.red .holo { --holo-c: 255, 90, 100; }
+.fx-transmission::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(var(--holo-c), 0.06) 0 1px, transparent 1px 3px); }
+@keyframes transIn { 0% { opacity: 0; transform: translateX(-50%) scaleY(0.05); } 60% { opacity: 0.6; } 100% { opacity: 1; transform: translateX(-50%) scaleY(1); } }
+.fx-trans-head { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.fx-trans-body { position: relative; z-index: 1; display: flex; gap: 14px; align-items: flex-start; }
+.fx-trans-text { flex: 1; min-width: 0; }
+.fx-trans-from { font-family: var(--font-head); letter-spacing: 0.08em; color: rgb(var(--holo-c)); text-shadow: 0 0 8px rgba(var(--holo-c), 0.7); }
+.fx-trans-text p { margin: 6px 0; color: rgb(var(--holo-c)); font-family: var(--font-mono); font-size: 0.98rem; white-space: pre-wrap; text-shadow: 0 0 6px rgba(var(--holo-c), 0.5); }
+.fx-caret { animation: pulse 0.8s steps(2) infinite; }
+@media (max-width: 560px) { .fx-trans-body { flex-direction: column; align-items: center; } }
+
+/* Mapa da galáxia */
+.galaxy-layout { grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
+.galaxy-wrap { position: relative; border: 1px solid var(--line); border-radius: var(--radius); background: radial-gradient(ellipse at center, #071331, #01030b 75%); overflow: hidden; }
+.galaxy-wrap.adding { cursor: crosshair; outline: 1px dashed var(--sw-yellow); }
+.galaxy-svg { display: block; width: 100%; height: auto; }
+.galaxy-ring { fill: none; stroke: rgba(110, 190, 255, 0.16); stroke-width: 1; stroke-dasharray: 4 6; }
+.galaxy-ring-label { fill: rgba(150, 200, 255, 0.35); font-family: var(--font-head); font-size: 10px; letter-spacing: 0.2em; }
+.galaxy-planet { cursor: pointer; }
+.galaxy-dot { fill: var(--holo); stroke: #001; stroke-width: 1; filter: drop-shadow(0 0 4px var(--holo)); }
+.galaxy-planet.custom .galaxy-dot { fill: var(--saber-green); }
+.galaxy-planet.sel .galaxy-dot { fill: var(--sw-yellow); filter: drop-shadow(0 0 6px var(--sw-yellow)); }
+.galaxy-dot.draft { fill: var(--sw-yellow); animation: pulse 1s infinite; }
+.galaxy-label { fill: #cfe6ff; font-size: 13px; font-family: var(--font-body); paint-order: stroke; stroke: #01030b; stroke-width: 3px; pointer-events: none; }
+.galaxy-planet.sel .galaxy-label, .galaxy-planet.here .galaxy-label { fill: var(--sw-yellow); font-weight: 600; }
+.galaxy-here-ring { fill: none; stroke: var(--sw-yellow); stroke-width: 2; animation: hereRing 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes hereRing { from { transform: scale(0.6); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+.galaxy-route { stroke: var(--sw-yellow); stroke-width: 2; stroke-dasharray: 8 6; animation: route 0.8s linear infinite; }
+@keyframes route { to { stroke-dashoffset: -14; } }
+
+/* Contratos da Guilda */
+.contract-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
+.contract-card { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid rgba(255, 232, 31, 0.35); border-radius: var(--radius); background: linear-gradient(180deg, rgba(40, 32, 6, 0.55), rgba(10, 10, 14, 0.9)); position: relative; }
+.contract-card.aceito { border-color: rgba(58, 200, 255, 0.5); }
+.contract-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 232, 31, 0.25); padding-bottom: 6px; margin-bottom: 6px; }
+.contract-kind { font-family: var(--font-head); letter-spacing: 0.3em; color: var(--sw-yellow); font-size: 0.85rem; }
+.contract-title { font-family: var(--font-head); font-size: 1rem; color: var(--text); margin-bottom: 2px; }
+.contract-reward { font-family: var(--font-mono); font-size: 1.35rem; color: var(--sw-yellow); text-shadow: 0 0 8px rgba(255, 232, 31, 0.5); }
+.contract-reward small { font-size: 0.7rem; color: var(--muted); }
+
+/* Holocron */
+.codex-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 16px; align-items: start; }
+.codex-text { white-space: pre-wrap; color: var(--holo); font-family: var(--font-mono); line-height: 1.6; text-shadow: 0 0 6px rgba(127, 227, 255, 0.35); cursor: pointer; }
+.holocron-cube { --cube: 90px; --hc: 120, 220, 255; width: var(--cube); height: var(--cube); perspective: 500px; }
+.holocron-cube.sith { --hc: 255, 70, 90; }
+.holocron-cube .cube { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; animation: cubeSpin 12s linear infinite; }
+.holocron-cube .face { position: absolute; inset: 0; border: 2px solid rgba(var(--hc), 0.9); background: radial-gradient(circle, rgba(var(--hc), 0.35), rgba(var(--hc), 0.08) 60%), repeating-linear-gradient(45deg, rgba(var(--hc), 0.12) 0 2px, transparent 2px 9px); box-shadow: 0 0 18px rgba(var(--hc), 0.5), inset 0 0 14px rgba(var(--hc), 0.5); }
+.holocron-cube .face.f { transform: translateZ(calc(var(--cube) / 2)); }
+.holocron-cube .face.b { transform: rotateY(180deg) translateZ(calc(var(--cube) / 2)); }
+.holocron-cube .face.l { transform: rotateY(-90deg) translateZ(calc(var(--cube) / 2)); }
+.holocron-cube .face.r { transform: rotateY(90deg) translateZ(calc(var(--cube) / 2)); }
+.holocron-cube .face.t { transform: rotateX(90deg) translateZ(calc(var(--cube) / 2)); }
+.holocron-cube .face.d { transform: rotateX(-90deg) translateZ(calc(var(--cube) / 2)); }
+@keyframes cubeSpin { from { transform: rotateX(-22deg) rotateY(0deg); } to { transform: rotateX(-22deg) rotateY(360deg); } }
+
+/* Cantina */
+.cantina-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; align-items: start; }
+.jubilee { position: relative; display: grid; place-items: center; padding: 26px 0 10px; }
+.jubilee-pointer { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); color: var(--sw-yellow); font-size: 1.4rem; z-index: 2; text-shadow: 0 0 8px var(--sw-yellow); }
+.jubilee-wheel { position: relative; width: 210px; height: 210px; border-radius: 50%; border: 4px solid #8a6a10;
+  background: conic-gradient(#5a0d16 0 60deg, #3b1a0a 60deg 120deg, #0d2a40 120deg 180deg, #0f3d1e 180deg 240deg, #2d1255 240deg 300deg, #6b5200 300deg 360deg);
+  box-shadow: 0 0 24px rgba(255, 200, 60, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.6); transition: transform 2.6s cubic-bezier(.12, .7, .15, 1); }
+.jubilee-wheel span { position: absolute; left: 50%; top: 50%; width: 40px; height: 20px; margin: -10px 0 0 -20px; text-align: center; font-family: var(--font-head); color: #ffe9a3; text-shadow: 0 0 6px #000; }
+.jubilee-wheel::after { content: ""; position: absolute; inset: 42%; border-radius: 50%; background: radial-gradient(circle, #ffe9a3, #8a6a10); }
+.sabacc-table { display: grid; gap: 14px; padding: 14px 22px; border-radius: 60px / 40px; background: radial-gradient(ellipse, #0f3a26, #06180f 80%); border: 2px solid #3a2a10; }
+.sabacc-side { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
+.sabacc-hand { display: flex; gap: 6px; }
+.sabacc-card { width: 52px; height: 74px; border-radius: 6px; display: grid; place-items: center; grid-template-rows: 1fr auto auto; padding: 4px 2px; background: linear-gradient(160deg, rgba(120, 220, 255, 0.35), rgba(20, 60, 110, 0.75)); border: 1px solid rgba(160, 230, 255, 0.8); box-shadow: 0 0 10px rgba(80, 200, 255, 0.35); animation: dealIn 0.5s ease; font-family: var(--font-head); }
+.sabacc-card .v { font-size: 1.1rem; color: #fff; }
+.sabacc-card .s { font-size: 1rem; color: var(--sw-yellow); }
+.sabacc-card .n { font-size: 0.5rem; letter-spacing: 0.05em; color: var(--holo); }
+@keyframes dealIn { from { transform: translateY(-20px) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.gamble-result { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); text-align: center; }
+.gamble-result.win { border-color: var(--ok); box-shadow: 0 0 16px rgba(82, 255, 125, 0.25); }
+.gamble-result.lose { border-color: var(--danger); }
+.gamble-net { font-family: var(--font-mono); font-size: 1.5rem; margin-top: 4px; }
+.gamble-result.win .gamble-net { color: var(--ok); }
+.gamble-result.lose .gamble-net { color: var(--danger); }
+
+/* Sabre de luz */
+.saber-hilt { --blade: #3ac8ff; position: relative; display: inline-flex; align-items: center; width: 180px; max-width: 60%; height: 16px; padding: 0; background: none; border: 0; cursor: pointer; flex: none; }
+.saber-hilt .hilt { width: 34px; height: 10px; border-radius: 2px; background: linear-gradient(180deg, #ddd, #666 45%, #222); box-shadow: inset 6px 0 0 #333, inset -4px 0 0 #999; flex: none; }
+.saber-hilt .blade { height: 6px; border-radius: 0 4px 4px 0; width: 0; background: #fff; box-shadow: 0 0 4px var(--blade), 0 0 10px var(--blade), 0 0 18px var(--blade); transition: width 0.3s ease-out; }
+.saber-hilt.on .blade { width: calc(100% - 34px); animation: bladeHum 0.12s infinite alternate; }
+.saber-hilt.darksaber .blade { background: #0a0a10; box-shadow: 0 0 3px #fff, 0 0 8px #fff; }
+@keyframes bladeHum { from { opacity: 0.92; } to { opacity: 1; } }
+
+/* Sussurros do lado sombrio */
+.dark-whispers { position: fixed; inset: 0; z-index: 25; pointer-events: none; overflow: hidden; }
+.dark-whisper { position: absolute; font-family: var(--font-crawl); font-style: italic; letter-spacing: 0.08em; color: rgba(255, 60, 80, 0.85); text-shadow: 0 0 12px rgba(255, 0, 30, 0.8), 0 0 2px #000; white-space: nowrap; animation: whisper 6s ease-in-out forwards; }
+@keyframes whisper { 0% { opacity: 0; filter: blur(6px); letter-spacing: 0.4em; } 25% { opacity: 0.85; filter: blur(0.3px); letter-spacing: 0.08em; } 70% { opacity: 0.7; } 100% { opacity: 0; filter: blur(4px); letter-spacing: 0.25em; } }
+
+@media (max-width: 1000px) {
+  .galaxy-layout, .codex-layout, .cantina-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-tunnel, .fx-alert, .dark-whisper, .holocron-cube .cube, .medal-strip .medal-badge, .fx-transmission { animation: none !important; }
+}
+
+.check input { flex: none; }

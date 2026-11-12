@@ -14,6 +14,10 @@ import { FeatBrowser, TalentBrowser, PowerBrowser, ForceExtrasBrowser } from './
 import { fmtMod, d20Formula } from '../lib/dice';
 import { sendRoll } from '../lib/rolls';
 import { sfx } from '../lib/sfx';
+import { fx, SABER_COLORS, saberHex } from '../lib/fx';
+import { requestFx } from '../lib/table';
+import DarkWhispers from './DarkWhispers';
+import { MedalsPanel, MedalBadge } from './Medals';
 
 const TABS = [
   ['pericias', 'Perícias'],
@@ -156,6 +160,7 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
   return (
     <div>
       {corruption > 0 && <div className="darkside-vignette" aria-hidden="true" />}
+      {!isMaster && !d.droid && <DarkWhispers level={corruption} />}
       <div className="sheet-head">
         <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap', gap: 18 }}>
         <PortraitHolo data={data} set={set} editable={editable} size={120} />
@@ -173,6 +178,9 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
             {d.armor && <span className="tag">{d.armor.name}{!d.armorProficient && ' (não proficiente)'}</span>}
             <span className="tag yellow">{(data.credits || 0).toLocaleString('pt-BR')} créditos</span>
           </div>
+          {(data.medals || []).length > 0 && (
+            <div className="medal-strip">{data.medals.map((m) => <MedalBadge key={m.id} medal={m} size={26} />)}</div>
+          )}
         </div>
         </div>
         {editable && (
@@ -331,9 +339,23 @@ export default function Sheet({ data, onChange, editable = true, campaignId, cha
                 <div className="tiny" style={{ marginTop: 4, color: corruption >= 1 ? 'var(--sith-red)' : 'var(--muted)' }}>
                   {corruption >= 1 ? 'Consumido pelo lado sombrio.' : corruption >= 0.75 ? 'A escuridão está quase completa...' : corruption >= 0.4 ? 'Você sente o ódio crescer.' : corruption > 0 ? 'Uma sombra tocou você.' : 'Em equilíbrio com a Força.'}
                 </div>
+                {data.guildRep != null && (
+                  <div className="row between" style={{ marginTop: 12 }}>
+                    <span className="small">Reputação na Guilda</span>
+                    <span className={`mono small ${data.guildRep < 0 ? 'red-text' : data.guildRep > 1 ? 'green-text' : 'yellow'}`}>{data.guildRep > 0 ? '+' : ''}{data.guildRep}</span>
+                  </div>
+                )}
               </>
             )}
           </Panel>
+
+          {((data.medals || []).length > 0 || isMaster) && (
+            <Panel title="Medalhas" className="yellow">
+              <MedalsPanel medals={data.medals || []} canGrant={isMaster}
+                onChange={(medals) => set({ medals })}
+                onGranted={(medal) => requestFx('medal', { character: data.name || 'Sem nome', medal })} />
+            </Panel>
+          )}
 
           <Panel title="Habilidades">
             <div className="abilities" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
@@ -460,6 +482,7 @@ function CombatTab({ d, data, set, roll, editable }) {
               <div>
                 <div className="name">{w.name} {!w.proficient && <span className="tag red">não proficiente −5</span>}</div>
                 <div className="sub">{WEAPON_GROUPS[w.group] ?? w.group} · {w.melee ? 'corpo a corpo' : 'à distância'}{w.notes ? ` · ${w.notes}` : ''}</div>
+                {w.group === 'sabres' && <SaberBlade w={w} editable={editable} onCrystal={(crystal) => updateWeapon(w.uid, { crystal })} />}
                 {editable && (
                   <div className="row tiny" style={{ marginTop: 4 }}>
                     <span className="muted">Bônus extra: ataque</span>
@@ -471,7 +494,7 @@ function CombatTab({ d, data, set, roll, editable }) {
                 )}
               </div>
               <div className="row" style={{ flexWrap: 'nowrap' }}>
-                <button className="roll-chip" title="Rolar ataque" onClick={() => roll(d20Formula(w.attack), `Ataque — ${w.name}`, 'attack')}>{fmtMod(w.attack)}</button>
+                <button className="roll-chip" title="Rolar ataque" onClick={() => { if (w.group === 'sabres') fx.saberSwing(w.crystal); roll(d20Formula(w.attack), `Ataque — ${w.name}`, 'attack'); }}>{fmtMod(w.attack)}</button>
                 <button className="roll-chip red" title="Rolar dano" onClick={() => roll(w.damage, `Dano — ${w.name}`, 'damage')}>{w.damage}</button>
               </div>
             </div>
@@ -1048,6 +1071,28 @@ function DestinyBlock({ data, set, editable, d }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Lâmina do sabre de luz com a cor do cristal; clique para ligar/desligar (com som sintetizado)
+function SaberBlade({ w, editable, onCrystal }) {
+  const [on, setOn] = useState(false);
+  const color = w.crystal || 'azul';
+  const toggle = () => {
+    if (on) fx.saberOff(color); else fx.saberOn(color);
+    setOn((x) => !x);
+  };
+  return (
+    <div className="row" style={{ marginTop: 6, gap: 8, flexWrap: 'nowrap' }}>
+      <button className={`saber-hilt ${on ? 'on' : ''} ${color === 'preto' ? 'darksaber' : ''}`} style={{ '--blade': saberHex(color) }} onClick={toggle} title={on ? 'Desligar' : 'Ligar o sabre'}>
+        <span className="hilt" /><span className="blade" />
+      </button>
+      {editable ? (
+        <select value={color} onChange={(e) => { onCrystal(e.target.value); fx.saberOn(e.target.value); setOn(true); }} style={{ padding: '2px 6px', fontSize: '0.78rem', width: 'auto' }} title="Cor do cristal">
+          {SABER_COLORS.map(([k, l]) => <option key={k} value={k}>Cristal {l.toLowerCase()}</option>)}
+        </select>
+      ) : <span className="tiny muted">Cristal {SABER_COLORS.find(([k]) => k === color)?.[1].toLowerCase()}</span>}
     </div>
   );
 }

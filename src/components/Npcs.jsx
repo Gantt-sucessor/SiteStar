@@ -6,6 +6,7 @@ import { fmtMod, d20Formula } from '../lib/dice';
 import { sendRoll } from '../lib/rolls';
 import { toNpc, blankNpc, buildNonheroic, XP_BY_ND } from '../lib/npcs';
 import { Panel } from './Sheet';
+import { PortraitHolo } from './Holo';
 
 const CATEGORIES = [
   ['todos', 'Todos'], ['arquetipo', 'Arquétipos'], ['personagem', 'Personagens dos filmes'], ['droide', 'Dróides'], ['besta', 'Bestas'],
@@ -122,6 +123,7 @@ export function NpcSheet({ row, onChange, campaignId, secret }) {
   return (
     <div>
       <div className="row between" style={{ alignItems: 'flex-start' }}>
+        <PortraitHolo data={n} set={set} editable={edit} size={edit ? 90 : 70} />
         <div style={{ minWidth: 0, flex: 1 }}>
           {edit
             ? <input className="sheet-name" value={n.name} onChange={(e) => set({ name: e.target.value })} style={{ fontFamily: 'var(--font-head)', fontSize: '1.3rem', color: 'var(--blaster-red)', width: '100%' }} />

@@ -20,6 +20,13 @@ import { VehicleCard, VehiclePicker } from '../components/Vehicles';
 import { deriveVehicle } from '../lib/vehicles';
 import { ADVENTURES } from '../data/adventures';
 import { d20Formula } from '../lib/dice';
+import { useTableChannel } from '../lib/table';
+import TableFx from '../components/TableFx';
+import Galaxy from '../components/Galaxy';
+import ContractBoard from '../components/Contracts';
+import { CodexEditor, CodexReader } from '../components/Codex';
+import Cantina from '../components/Cantina';
+import { resizeImage } from '../components/Holo';
 
 function useCampaign(id) {
   const [campaign, setCampaign] = useState(null);
@@ -69,30 +76,15 @@ function useCampaign(id) {
   return { campaign, setCampaign, members, profiles, characters, setCharacters, status, reloadChars: loadChars };
 }
 
-// Canal de broadcast para o mestre exibir a abertura para todos ao mesmo tempo.
-function useCrawlBroadcast(id, onCrawl) {
-  const chRef = useRef(null);
-  const cb = useRef(onCrawl);
-  cb.current = onCrawl;
-  useEffect(() => {
-    const ch = supabase.channel(`crawl-${id}`, { config: { broadcast: { self: false } } })
-      .on('broadcast', { event: 'crawl' }, () => cb.current?.())
-      .subscribe();
-    chRef.current = ch;
-    return () => { supabase.removeChannel(ch); };
-  }, [id]);
-  return () => chRef.current?.send({ type: 'broadcast', event: 'crawl', payload: {} });
-}
-
 const crawlOf = (campaign) => (campaign?.crawl?.text ? campaign.crawl : null);
 
 export default function CampaignPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const camp = useCampaign(id);
-  const [showCrawl, setShowCrawl] = useState(false);
+  const [showCrawl, setShowCrawl] = useState(false); // false | true (abertura da campanha) | objeto (ex.: recapitulação)
   const isMaster = camp.campaign?.master_id === user.id;
-  const broadcastCrawl = useCrawlBroadcast(id, () => setShowCrawl(true));
+  const send = useTableChannel(id, user.id, (crawl) => setShowCrawl(crawl || true));
 
   // Mostra a abertura da campanha automaticamente na primeira visita do jogador
   useEffect(() => {
@@ -112,10 +104,11 @@ export default function CampaignPage() {
 
   return (
     <>
-      {showCrawl && <Crawl crawl={crawlOf(camp.campaign) || DEFAULT_CRAWL} onDone={() => setShowCrawl(false)} />}
+      {showCrawl && <Crawl crawl={typeof showCrawl === 'object' ? showCrawl : crawlOf(camp.campaign) || DEFAULT_CRAWL} onDone={() => setShowCrawl(false)} />}
+      <TableFx />
       {isMaster
-        ? <MasterView camp={camp} user={user} onCrawl={() => setShowCrawl(true)} broadcastCrawl={broadcastCrawl} />
-        : <PlayerView camp={camp} user={user} onCrawl={() => setShowCrawl(true)} />}
+        ? <MasterView camp={camp} user={user} onCrawl={(c) => setShowCrawl(c || true)} send={send} />
+        : <PlayerView camp={camp} user={user} onCrawl={() => setShowCrawl(true)} send={send} />}
     </>
   );
 }
@@ -136,7 +129,7 @@ function CampaignHeader({ campaign, profiles, children }) {
 
 /* ======================= Jogador ======================= */
 
-function PlayerView({ camp, user, onCrawl }) {
+function PlayerView({ camp, user, onCrawl, send }) {
   const { campaign, profiles, characters, reloadChars } = camp;
   const mine = characters.filter((c) => c.owner_id === user.id);
   const [activeId, setActiveId] = useState(null);
@@ -163,6 +156,10 @@ function PlayerView({ camp, user, onCrawl }) {
       <div className="tabs">
         <button className={`tab ${tab === 'ficha' ? 'active' : ''}`} onClick={() => setTab('ficha')}>Minha ficha</button>
         <button className={`tab ${tab === 'mesa' ? 'active' : ''}`} onClick={() => setTab('mesa')}>Mesa</button>
+        <button className={`tab ${tab === 'galaxia' ? 'active' : ''}`} onClick={() => setTab('galaxia')}>Galáxia</button>
+        <button className={`tab ${tab === 'contratos' ? 'active' : ''}`} onClick={() => setTab('contratos')}>Contratos</button>
+        <button className={`tab ${tab === 'holocron' ? 'active' : ''}`} onClick={() => setTab('holocron')}>Holocron{(campaign.codex || []).length ? ` (${campaign.codex.length})` : ''}</button>
+        <button className={`tab ${tab === 'cantina' ? 'active' : ''}`} onClick={() => setTab('cantina')}>Cantina</button>
       </div>
 
       {tab === 'ficha' && (
@@ -192,6 +189,13 @@ function PlayerView({ camp, user, onCrawl }) {
           <Panel title="Rolagens da mesa"><RollFeed campaignId={campaign.id} userId={user.id} profiles={profiles} /></Panel>
         </div>
       )}
+
+      {tab === 'galaxia' && <Galaxy galaxy={campaign.galaxy || {}} isMaster={false} ships={campaign.vehicles || []} campaignId={campaign.id} />}
+      {tab === 'contratos' && <ContractBoard campaignId={campaign.id} myChars={mine} send={send} />}
+      {tab === 'holocron' && <CodexReader entries={campaign.codex || []} />}
+      {tab === 'cantina' && (current
+        ? <Cantina key={current.id} characterId={current.id} campaignId={campaign.id} />
+        : <div className="empty">Traga uma ficha para a mesa antes de apostar.</div>)}
     </div>
   );
 }
@@ -274,7 +278,7 @@ function InitiativeView({ initiative }) {
 
 /* ======================= Mestre ======================= */
 
-function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
+function MasterView({ camp, user, onCrawl, send }) {
   const { campaign, setCampaign, members, profiles, characters } = camp;
   const [tab, setTab] = useState('mesa');
   const [openChar, setOpenChar] = useState(null);
@@ -286,10 +290,13 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
 
   useSetRollTarget({ campaignId: campaign.id, character: { id: null, name: 'Mestre' }, isMaster: true });
 
+  const [extrasMissing, setExtrasMissing] = useState(false);
+  const [transOpen, setTransOpen] = useState(false);
   const saveCampaign = async (patch) => {
     setCampaign((c) => ({ ...c, ...patch }));
     const { error } = await supabase.from('campaigns').update(patch).eq('id', campaign.id);
-    if (error) alert(error.message);
+    if (error && /galaxy|codex/.test(error.message)) setExtrasMissing(true);
+    else if (error) alert(error.message);
   };
 
   const copy = () => {
@@ -357,8 +364,17 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
         </div>
       </CampaignHeader>
 
+      <div className="comms-bar">
+        <span className="kicker">Comunicações</span>
+        <button className="btn sm" onClick={() => setTransOpen(true)}>📡 Transmissão holográfica</button>
+        <button className="btn sm red" onClick={() => send('alert', { text: 'ALERTA VERMELHO' })}>🚨 Alerta!</button>
+        <button className="btn sm yellow" onClick={() => send('jump', {})}>⟫ Salto para o hiperespaço</button>
+        <button className="btn sm" onClick={() => send('exit', {})}>⟪ Saindo do hiperespaço</button>
+      </div>
+      {transOpen && <TransmissionConsole onClose={() => setTransOpen(false)} send={send} members={members} profiles={profiles} characters={characters} npcs={npcApi.npcs || []} />}
+
       <div className="tabs">
-        {[['mesa', 'Mesa'], ['ameacas', 'Ameaças / NPCs'], ['naves', 'Naves'], ['abertura', 'Abertura'], ['notas', 'Anotações'], ['config', 'Configurações']].map(([k, l]) => (
+        {[['mesa', 'Mesa'], ['ameacas', 'Ameaças / NPCs'], ['naves', 'Naves'], ['galaxia', 'Galáxia'], ['contratos', 'Contratos'], ['holocron', 'Holocron'], ['abertura', 'Abertura'], ['notas', 'Anotações'], ['config', 'Configurações']].map(([k, l]) => (
           <button key={k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -482,7 +498,23 @@ function MasterView({ camp, user, onCrawl, broadcastCrawl }) {
         </div>
       )}
 
-      {tab === 'abertura' && <CrawlEditor campaign={campaign} onSave={(crawl) => saveCampaign({ crawl })} onPreview={onCrawl} onBroadcast={() => { broadcastCrawl(); onCrawl(); }} />}
+      {tab === 'galaxia' && (
+        <Galaxy galaxy={campaign.galaxy || {}} isMaster ships={partyShips} campaignId={campaign.id} send={send} missingColumn={extrasMissing}
+          onSave={(galaxy) => saveCampaign({ galaxy })} />
+      )}
+      {tab === 'contratos' && <ContractBoard campaignId={campaign.id} isMaster characters={characters} send={send} />}
+      {tab === 'holocron' && (
+        <>
+          {extrasMissing && <div className="error-box" style={{ marginBottom: 12 }}>Rode o arquivo supabase/extras.sql no SQL Editor do Supabase para liberar o holocron aos jogadores.</div>}
+          <CodexEditor campaign={campaign} send={send} onSaveUnlocked={(codex) => saveCampaign({ codex })} />
+        </>
+      )}
+      {tab === 'abertura' && (
+        <div className="stack" style={{ gap: 16 }}>
+          <CrawlEditor campaign={campaign} onSave={(crawl) => saveCampaign({ crawl })} onPreview={() => onCrawl()} onBroadcast={() => send('crawl', {})} />
+          <RecapEditor campaign={campaign} onPreview={(crawl) => onCrawl(crawl)} onBroadcast={(crawl) => send('crawl', { crawl })} />
+        </div>
+      )}
       {tab === 'notas' && <MasterNotes campaignId={campaign.id} />}
       {tab === 'config' && <CampaignConfig campaign={campaign} members={members} profiles={profiles} onSave={saveCampaign} />}
 
@@ -772,6 +804,107 @@ function NpcLibrary({ api, campaignId, secret, selected, onSelect, onPicker, onI
         {current ? <NpcSheet row={current} campaignId={campaignId} secret={secret} onChange={(patch) => api.update(current.id, patch)} />
           : <div className="empty">Selecione ou crie um NPC.</div>}
       </Panel>
+    </div>
+  );
+}
+
+// "Anteriormente em...": abertura curta montada com três frases, para o começo de cada sessão
+export function buildRecap(name, lines) {
+  const parts = lines.map((l) => l.trim()).filter(Boolean).map((l) => (/[.!?…]$/.test(l) ? l : `${l}.`));
+  if (parts.length) parts[parts.length - 1] = parts[parts.length - 1].replace(/[.!?…]$/, '....');
+  return { episode: 'ANTERIORMENTE EM...', title: String(name || '').toUpperCase(), text: parts.join('\n\n') };
+}
+
+function RecapEditor({ campaign, onPreview, onBroadcast }) {
+  const key = `holocron:recap:${campaign.id}`;
+  const [lines, setLines] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(key)) || ['', '', '']; } catch { return ['', '', '']; }
+  });
+  const set = (i, v) => {
+    const next = lines.map((x, j) => (j === i ? v : x));
+    setLines(next);
+    try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* noop */ }
+  };
+  const crawl = buildRecap(campaign.name, lines);
+  const ok = lines.some((l) => l.trim());
+  const hints = ['O que aconteceu na última sessão?', 'Qual o perigo agora?', 'Onde os heróis estão (e o que vão fazer)?'];
+  return (
+    <Panel title="Anteriormente em..." className="red">
+      <p className="small muted" style={{ marginTop: 0 }}>Três frases sobre a última sessão viram um letreiro curto de recapitulação, no estilo dos filmes. Bom para abrir a sessão.</p>
+      {lines.map((l, i) => (
+        <label key={i} className="field" style={{ marginTop: i ? 8 : 0 }}>{i + 1}.
+          <input value={l} placeholder={hints[i]} onChange={(e) => set(i, e.target.value)} />
+        </label>
+      ))}
+      <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn" disabled={!ok} onClick={() => onPreview(crawl)}>Pré-visualizar</button>
+        <button className="btn red" disabled={!ok} onClick={() => onBroadcast(crawl)}>📡 Exibir recapitulação para todos</button>
+      </div>
+    </Panel>
+  );
+}
+
+// Console do mestre: transmissão holográfica para todos ou para um jogador
+function TransmissionConsole({ onClose, send, members, profiles, characters, npcs }) {
+  const [form, setForm] = useState({ to: 'all', from: '', text: '', img: null, tone: 'blue' });
+  const [err, setErr] = useState('');
+  const input = useRef(null);
+  const people = npcs.filter((n) => n.data.kind !== 'vehicle');
+  const pick = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    try { setForm({ ...form, img: await resizeImage(f, 220, 0.72) }); } catch (x) { setErr(x.message); }
+  };
+  const fromNpc = (id) => {
+    const n = people.find((x) => x.id === id);
+    if (n) setForm({ ...form, from: n.data.name, img: n.data.portrait || form.img });
+  };
+  const go = () => {
+    send('transmission', { ...form, private: form.to !== 'all' });
+    onClose();
+  };
+  const ids = [...new Set(members.map((m) => m.user_id))];
+  return (
+    <div className="modal-back" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal panel" style={{ width: 'min(620px, 100%)' }}>
+        <div className="panel-title"><span>Transmissão holográfica</span><button className="btn sm ghost" onClick={onClose}>✕</button></div>
+        <div className="grid grid-2">
+          <label className="field">Para
+            <select value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })}>
+              <option value="all">Todos os jogadores</option>
+              {ids.map((uid) => {
+                const chars = characters.filter((c) => c.owner_id === uid).map((c) => c.name).join(', ');
+                return <option key={uid} value={uid}>Só {profiles[uid]?.display_name ?? 'jogador'}{chars ? ` (${chars})` : ''}</option>;
+              })}
+            </select>
+          </label>
+          <label className="field">Quem fala
+            <input value={form.from} placeholder="Ssarra, mestra da Guilda" onChange={(e) => setForm({ ...form, from: e.target.value })} />
+          </label>
+        </div>
+        {people.length > 0 && (
+          <label className="field" style={{ marginTop: 8 }}>Usar um NPC da biblioteca
+            <select value="" onChange={(e) => fromNpc(e.target.value)}>
+              <option value="">Escolher NPC...</option>
+              {people.map((n) => <option key={n.id} value={n.id}>{n.data.name}{n.data.portrait ? ' (com foto)' : ''}</option>)}
+            </select>
+          </label>
+        )}
+        <label className="field" style={{ marginTop: 8 }}>Mensagem
+          <textarea value={form.text} style={{ minHeight: 120 }} placeholder="Caçador... tenho um trabalho para você. Venha sozinho." onChange={(e) => setForm({ ...form, text: e.target.value })} autoFocus />
+        </label>
+        <div className="row between" style={{ marginTop: 10 }}>
+          <div className="row" style={{ gap: 6 }}>
+            <button className="btn sm ghost" onClick={() => input.current?.click()}>{form.img ? 'Trocar foto' : 'Foto (opcional)'}</button>
+            {form.img && <button className="btn sm ghost red" onClick={() => setForm({ ...form, img: null })}>Sem foto</button>}
+            <label className="check tiny"><input type="checkbox" checked={form.tone === 'red'} onChange={(e) => setForm({ ...form, tone: e.target.checked ? 'red' : 'blue' })} /> Sinal vermelho (Império/Sith)</label>
+            <input ref={input} type="file" accept="image/*" style={{ display: 'none' }} onChange={pick} />
+          </div>
+          <button className="btn yellow primary" disabled={!form.text.trim()} onClick={go}>📡 Transmitir</button>
+        </div>
+        {err && <div className="tiny red-text">{err}</div>}
+      </div>
     </div>
   );
 }

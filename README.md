@@ -117,6 +117,28 @@ Para publicar: suba a pasta para o GitHub, importe o repositório na [Vercel](ht
 - **Naves inimigas:** entram na área **Em cena**, junto com os NPCs, e contam na dificuldade do encontro.
 - O rolador entende o multiplicador de dano de veículo (`6d10×2`).
 
+## Imersão na mesa
+
+> Antes de usar o mapa, o holocron e os contratos, rode [supabase/extras.sql](supabase/extras.sql) no **SQL Editor** do Supabase (uma vez).
+
+- **Barra de Comunicações** (topo da campanha, só o mestre):
+  - **Transmissão holográfica:** para todos ou para um jogador, com foto opcional (ou a de um NPC) e sinal azul ou vermelho.
+  - **Alerta!** (tela vermelha e sirene), **Salto para o hiperespaço** e **Saindo do hiperespaço**.
+- **Galáxia:** mapa com os planetas do cap. 13 (e alguns dos filmes).
+  - O mestre marca onde o grupo está e pode criar planetas da campanha.
+  - O salto usa as regras de astronavegação: Usar Computador CD 10 ou 30, Tabela 13-1, viagem de 1d6 × multiplicador do hiperdrive em dias.
+  - Todos veem o salto.
+- **Contratos:** o quadro da Guilda na HoloNet.
+  - O mestre publica, o jogador aceita.
+  - Em "Cumprido", os créditos caem na ficha e a reputação na Guilda sobe.
+- **Holocron:** o mestre escreve a lore em segredo e libera cada registro; os jogadores leem na aba Holocron.
+- **Cantina** (jogador): sabacc, roda de Jubilee e jogos de pura sorte, com as regras do box Jogando (Vigarista) e os créditos da ficha. O talento Jogador soma +2.
+- **Anteriormente em...** (aba Abertura): três frases viram um letreiro de recapitulação para todos.
+- **Medalhas:** o mestre concede pela ficha do jogador, com cerimônia na tela de todos.
+- **Sabre de luz:** escolha a cor do cristal na aba Combate. Clique no cabo para ligar; o ataque faz o som do golpe.
+- **Sussurros do lado sombrio:** acima de 50% de corrupção, frases surgem e somem na tela do jogador.
+- Todos os sons são sintetizados no navegador.
+
 ## Limitações conhecidas
 
 - **Fora do cálculo automático:**
