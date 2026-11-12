@@ -910,12 +910,12 @@ function TransmissionConsole({ onClose, send, members, profiles, characters, npc
 }
 
 function TableStatus({ campaignId }) {
-  const status = useTableStatus(campaignId);
+  const { status, error } = useTableStatus(campaignId);
   const ok = status === 'SUBSCRIBED';
   const bad = status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED';
   return (
-    <span className={`tag ${ok ? 'green' : bad ? 'red' : 'yellow'}`} title={`Canal da mesa: ${status}`}>
-      {ok ? '● canal conectado' : bad ? `● canal com erro (${status})` : '● conectando...'}
+    <span className={`tag ${ok ? 'green' : bad ? 'red' : 'yellow'}`} title={`Canal da mesa: ${status}${error ? ` · ${error}` : ''}`}>
+      {ok ? '● canal conectado' : bad ? `● canal com erro (${status}${error ? `: ${error}` : ''})` : '● conectando...'}
     </span>
   );
 }
