@@ -21,7 +21,6 @@ import { deriveVehicle } from '../lib/vehicles';
 import { ADVENTURES } from '../data/adventures';
 import { d20Formula } from '../lib/dice';
 import { useTableChannel } from '../lib/table';
-import TableFx from '../components/TableFx';
 import Galaxy from '../components/Galaxy';
 import ContractBoard from '../components/Contracts';
 import { CodexEditor, CodexReader } from '../components/Codex';
@@ -105,7 +104,6 @@ export default function CampaignPage() {
   return (
     <>
       {showCrawl && <Crawl crawl={typeof showCrawl === 'object' ? showCrawl : crawlOf(camp.campaign) || DEFAULT_CRAWL} onDone={() => setShowCrawl(false)} />}
-      <TableFx />
       {isMaster
         ? <MasterView camp={camp} user={user} onCrawl={(c) => setShowCrawl(c || true)} send={send} />
         : <PlayerView camp={camp} user={user} onCrawl={() => setShowCrawl(true)} send={send} />}

@@ -8,6 +8,8 @@ import Starfield from './components/Starfield';
 import Crawl from './components/Crawl';
 import DiceTray from './components/DiceTray';
 import RollToasts from './components/RollToasts';
+import TableFx from './components/TableFx';
+import { useAllTableChannels } from './lib/table';
 import Login, { SetupNeeded } from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CharacterWizard from './pages/CharacterWizard';
@@ -48,6 +50,8 @@ function Shell() {
   const { user, loading } = useAuth();
   const { pathname } = useLocation();
   const [intro, setIntro] = useState(false);
+  // transmissões, alertas e saltos do mestre chegam em qualquer página do site
+  useAllTableChannels(user?.id, pathname);
 
   useEffect(() => {
     if (!user) return;
@@ -88,6 +92,7 @@ function Shell() {
         </Routes>
         <DiceTray />
         <RollToasts />
+        <TableFx />
       </div>
     </>
   );
